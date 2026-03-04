@@ -40,3 +40,42 @@ a {
     color-scheme: dark;
   }
 }
+/* TEMP: force clicks to work everywhere */
+html, body, main, div, a, button {
+  pointer-events: auto !important;
+}
+body {
+  background-image: url('/mountain-bg.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.57);
+  z-index: 0;
+  pointer-events: none;
+}
+
+main, nav {
+  position: relative;
+  z-index: 1;
+}.nav-link {
+  color: #ffcc00 !important;
+  text-decoration: none;
+  font-size: 14px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-family: system-ui;
+  transition: all 0.15s ease;
+}
+
+.nav-link:hover {
+  color: #000 !important;
+  background: #ffcc00 !important;
+  box-shadow: 0 0 16px rgba(255, 204, 0, 0.4);
+}
