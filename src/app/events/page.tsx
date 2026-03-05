@@ -103,8 +103,9 @@ export default function EventsPage() {
           <span style={{ fontSize: 11, color: "#aaa", width: 66, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Status</span>
           <FilterBtn label="All" filterKey="status" value="all" />
           <FilterBtn label="Upcoming" filterKey="status" value="upcoming" />
-          <FilterBtn label="Drawn" filterKey="status" value="drawn" />
           <FilterBtn label="Completed" filterKey="status" value="completed" />
+          <FilterBtn label="Drawn" filterKey="status" value="drawn" />
+
         </div>
       </div>
 
