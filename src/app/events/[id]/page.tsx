@@ -10,6 +10,7 @@ type EventRow = {
   status: string | null;
   ifsa_url: string;
   liveheats_url: string | null;
+  event_guide_url: string | null;
   updated_at: string;
   start_date: string | null;
   end_date: string | null;
@@ -66,6 +67,12 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
               <a href={e.liveheats_url} target="_blank" rel="noreferrer"
                 style={{ fontSize: 13, color: "#aaa", border: "1px solid #333", borderRadius: 8, padding: "6px 14px", textDecoration: "none" }}>
                 View on LiveHeats ↗
+              </a>
+            )}
+            {e.event_guide_url && (
+              <a href={e.event_guide_url} target="_blank" rel="noreferrer"
+                style={{ fontSize: 13, color: "#ffcc00", border: "1px solid #ffcc00", borderRadius: 8, padding: "6px 14px", textDecoration: "none" }}>
+                Event Guide ↗
               </a>
             )}
           </div>
