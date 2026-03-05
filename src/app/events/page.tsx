@@ -76,7 +76,7 @@ export default function EventsPage() {
 
   return (
     <main style={{ maxWidth: 1000, margin: "0 auto", fontFamily: "system-ui", padding: "24px 16px 60px", color: "#e8e8e8" }}>
-      <h1 style={{ fontSize: "clamp(20px, 5vw, 28px)", fontWeight: 800, marginBottom: 4 }}>IFSA U19 Events</h1>
+      <h1 style={{ fontSize: "clamp(20px, 5vw, 28px)", fontWeight: 800, marginBottom: 4 }}>IFSA Events</h1>
       <p style={{ color: "#aaa", fontSize: 14, marginBottom: 16 }}>2★ and 3★ freeride competitions for U19 athletes.</p>
 
       <input
