@@ -89,18 +89,18 @@ export default function EventsPage() {
 
       <div style={{ border: "1px solid #1e1e1e", borderRadius: 14, padding: "12px 14px", marginBottom: 20, background: "rgba(0,0,0,0.4)", display: "flex", flexDirection: "column", gap: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
-          <span style={{ fontSize: 11, color: "#aaa", minWidth: 72, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Discipline</span>
+          <span style={{ fontSize: 11, color: "#aaa", minWidth: 80, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Discipline</span>
           <FilterBtn label="All" filterKey="discipline" value="all" />
           <FilterBtn label="Ski" filterKey="discipline" value="ski" />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
-          <span style={{ fontSize: 11, color: "#aaa", minWidth: 72, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Stars</span>
+          <span style={{ fontSize: 11, color: "#aaa", minWidth: 80, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Stars</span>
           <FilterBtn label="All" filterKey="stars" value="all" />
           <FilterBtn label="2★" filterKey="stars" value="2" />
           <FilterBtn label="3★" filterKey="stars" value="3" />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
-          <span style={{ fontSize: 11, color: "#aaa", minWidth: 72, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Status</span>
+          <span style={{ fontSize: 11, color: "#aaa", minWidth: 80, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Status</span>
           <FilterBtn label="All" filterKey="status" value="all" />
           <FilterBtn label="Upcoming" filterKey="status" value="upcoming" />
           <FilterBtn label="Completed" filterKey="status" value="completed" />
