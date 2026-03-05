@@ -3,7 +3,7 @@ import './globals.css';
 import Nav from './Nav';
 
 export const metadata: Metadata = {
-  title: 'IFSA U19 Hub',
+  title: 'IFSA Event Hub',
   description: 'IFSA U19 Freeride Events and Results',
 };
 
