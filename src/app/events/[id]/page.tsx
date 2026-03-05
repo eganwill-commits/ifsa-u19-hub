@@ -86,7 +86,6 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
         {[
           { label: "DATES", main: fmtDate(e.start_date), sub: e.end_date ? `to ${fmtDate(e.end_date)}` : null, sub2: daysBetween ? `${daysBetween} days` : null },
           { label: "VENUE", main: e.venue_name ?? "TBD", sub: e.location_text ?? null, sub2: null },
-          { label: "CATEGORY", main: e.discipline ? e.discipline.charAt(0).toUpperCase() + e.discipline.slice(1) : "—", sub: `${e.gender} · U19 · ${e.stars} star`, sub2: null },
           { label: "LAST UPDATED", main: new Date(e.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }), sub: new Date(e.updated_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }), sub2: null },
         ].map(card => (
           <div key={card.label} style={{ border: "1px solid #2a2a2a", borderRadius: 12, padding: "14px 16px", background: "rgba(10,10,10,0.8)" }}>
