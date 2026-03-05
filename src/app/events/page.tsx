@@ -135,10 +135,6 @@ export default function EventsPage() {
                     {e.venue_name ? ` · ${e.venue_name}` : ""}
                   </div>
                 </div>
-                <a href={e.ifsa_url} target="_blank" rel="noreferrer" onClick={(ev) => ev.stopPropagation()}
-                  style={{ flexShrink: 0, fontSize: 11, color: "#aaa", border: "1px solid #333", borderRadius: 8, padding: "5px 10px", textDecoration: "none", whiteSpace: "nowrap" }}>
-                  IFSA ↗
-                </a>
               </div>
             </Link>
           );
