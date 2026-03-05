@@ -59,6 +59,12 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
             </span>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {e.event_guide_url && (
+              <a href={e.event_guide_url} target="_blank" rel="noreferrer"
+                style={{ fontSize: 13, color: "#ffcc00", border: "1px solid #ffcc00", borderRadius: 8, padding: "6px 14px", textDecoration: "none" }}>
+                Event Guide ↗
+              </a>
+            )}
             <a href={e.ifsa_url} target="_blank" rel="noreferrer"
               style={{ fontSize: 13, color: "#aaa", border: "1px solid #333", borderRadius: 8, padding: "6px 14px", textDecoration: "none" }}>
               View on IFSA ↗
@@ -67,12 +73,6 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
               <a href={e.liveheats_url} target="_blank" rel="noreferrer"
                 style={{ fontSize: 13, color: "#aaa", border: "1px solid #333", borderRadius: 8, padding: "6px 14px", textDecoration: "none" }}>
                 View on LiveHeats ↗
-              </a>
-            )}
-            {e.event_guide_url && (
-              <a href={e.event_guide_url} target="_blank" rel="noreferrer"
-                style={{ fontSize: 13, color: "#ffcc00", border: "1px solid #ffcc00", borderRadius: 8, padding: "6px 14px", textDecoration: "none" }}>
-                Event Guide ↗
               </a>
             )}
           </div>
