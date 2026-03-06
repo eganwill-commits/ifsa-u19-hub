@@ -55,7 +55,7 @@ export default function AthletesPage() {
       {!loading && results.length > 0 && (
         <div style={{ display: 'grid', gap: 8 }}>
           {results.map(a => (
-            <a key={a.id} href={a.liveheats_url ?? '#'} target="_blank" rel="noreferrer"
+            <a key={a.id} href={'https://liveheats.com/athletes?search=' + encodeURIComponent(a.name)} target="_blank" rel="noreferrer"
               style={{ textDecoration: 'none', border: '1px solid #1e1e1e', borderRadius: 12, padding: '12px 16px', background: 'rgba(10,10,10,0.8)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
               onMouseEnter={e => (e.currentTarget.style.background = '#141414')}
               onMouseLeave={e => (e.currentTarget.style.background = 'rgba(10,10,10,0.8)')}
