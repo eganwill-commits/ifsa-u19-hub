@@ -1,58 +1,47 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { createClient } from '@supabase/supabase-js';
+
+type Athlete = {
+  id: string;
+  name: string;
+  liveheats_url: string | null;
+};
 
 export default function AthletesPage() {
+  const supabase = useMemo(() => createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  ), []);
+
   const [query, setQuery] = useState('');
-  const [searchUrl, setSearchUrl] = useState('');
+  const [results, setResults] = useState<Athlete[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [searched, setSearched] = useState(false);
 
-  const handleSearch = () => {
-    if (!query.trim()) return;
-    setSearchUrl('https://liveheats.com/athletes?search=' + encodeURIComponent(query));
-  };
-
-  const handleKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') handleSearch();
-  };
+  useEffect(() => {
+    if (!query.trim()) { setResults([]); setSearched(false); return; }
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      const { data } = await supabase
+        .from('athletes')
+        .select('*')
+        .ilike('name', `%${query}%`)
+        .order('name')
+        .limit(50);
+      setResults(data || []);
+      setSearched(true);
+      setLoading(false);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query, supabase]);
 
   return (
     <main style={{ maxWidth: 1000, margin: '0 auto', padding: '24px 16px 60px', fontFamily: 'system-ui', color: '#e8e8e8' }}>
       <h1 style={{ fontSize: 'clamp(22px, 5vw, 28px)', fontWeight: 800, marginBottom: 4 }}>Athlete Search</h1>
-      <p style={{ color: '#aaa', fontSize: 14, marginBottom: 20 }}>Search for IFSA U19 athletes by name.</p>
+      <p style={{ color: '#aaa', fontSize: 14, marginBottom: 20 }}>Search {4341} IFSA U19 athletes by name.</p>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-        <input
-          type="text"
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          onKeyDown={handleKey}
-          placeholder="Search athlete name..."
-          style={{ flex: 1, padding: '10px 16px', borderRadius: 10, border: '2px solid #ffcc00', background: '#0e0e0e', color: '#fff', fontSize: 'clamp(13px, 3vw, 15px)', fontFamily: 'system-ui', outline: 'none', minWidth: 0 }}
-          autoFocus
-        />
-        <button
-          onClick={handleSearch}
-          style={{ padding: '10px 18px', borderRadius: 10, border: 'none', background: '#ffcc00', color: '#000', fontWeight: 700, fontSize: 14, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
-        >
-          Search
-        </button>
-      </div>
-
-      {searchUrl ? (
-        <div style={{ border: '1px solid #2a2a2a', borderRadius: 16, overflow: 'hidden' }}>
-          <iframe
-            key={searchUrl}
-            src={searchUrl}
-            style={{ width: '100%', height: 'clamp(500px, 80vh, 800px)', border: 'none', background: '#fff', display: 'block' }}
-            title="Athlete Search Results"
-          />
-        </div>
-      ) : (
-        <div style={{ border: '1px solid #2a2a2a', borderRadius: 16, padding: '32px 20px', background: 'rgba(10,10,10,0.8)', textAlign: 'center' }}>
-          <p style={{ color: '#aaa', fontSize: 14, margin: 0 }}>
-            Enter an athlete name above to search their LiveHeats profile, competition history and results.
-          </p>
-        </div>
-      )}
-    </main>
-  );
-}
+      <input
+        type="text"
+        value={query}
+        onChange={e => setQuer
