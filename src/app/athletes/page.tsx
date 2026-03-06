@@ -39,9 +39,9 @@ export default function AthletesPage() {
   return (
     <main style={{ maxWidth: 1000, margin: '0 auto', padding: '24px 16px 60px', fontFamily: 'system-ui', color: '#e8e8e8' }}>
       <h1 style={{ fontSize: 'clamp(22px, 5vw, 28px)', fontWeight: 800, marginBottom: 4 }}>Athlete Search</h1>
-      <p style={{ color: '#aaa', fontSize: 14, marginBottom: 20 }}>Search {4341} IFSA U19 athletes by name.</p>
+      <p style={{ color: '#aaa', fontSize: 14, marginBottom: 20 }}>Search 4,341 IFSA U19 athletes by name.</p>
 
       <input
         type="text"
         value={query}
-        onChange={e => setQuer
+        onChange={e => setQuerU19 athletes by name.</p>
