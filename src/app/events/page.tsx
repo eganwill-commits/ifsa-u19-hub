@@ -60,7 +60,7 @@ export default function EventsPage() {
   const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "TBD";
 
   const upcomingCount = events.filter(e => (e.status ?? "upcoming") === "upcoming").length;
-  const drawnCount = events.filter(e => e.status === "drawn").length;
+  
   const completedCount = events.filter(e => e.status === "completed").length;
 
   const FilterBtn = ({ label, filterKey, value }: { label: string; filterKey: keyof Filters; value: string }) => {
@@ -108,14 +108,14 @@ export default function EventsPage() {
           <FilterBtn label="All" filterKey="status" value="all" />
           <FilterBtn label="Upcoming" filterKey="status" value="upcoming" />
           <FilterBtn label="Completed" filterKey="status" value="completed" />
-          <FilterBtn label="Drawn" filterKey="status" value="drawn" />
+          
         </div>
       </div>
 
       <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
         <span style={{ color: "#aaa", fontSize: 13 }}>Showing {filtered.length} of {events.length} events</span>
         <span style={{ fontSize: 12, color: "#4a9edd", border: "1px solid #1a2a3a", borderRadius: 999, padding: "2px 10px" }}>{upcomingCount} upcoming</span>
-        <span style={{ fontSize: 12, color: "#f0c040", border: "1px solid #3a3a00", borderRadius: 999, padding: "2px 10px" }}>{drawnCount} drawn</span>
+        
         <span style={{ fontSize: 12, color: "#4caf50", border: "1px solid #1a3a1a", borderRadius: 999, padding: "2px 10px" }}>{completedCount} completed</span>
       </div>
 
