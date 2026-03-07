@@ -60,6 +60,10 @@ export default function EventsPage() {
   const setFilter = (key: keyof Filters, value: string) => setFilters((f) => ({ ...f, [key]: value }));
   const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "TBD";
 
+  const upcomingCount = events.filter(e => (e.status ?? "upcoming") === "upcoming").length;
+  const drawnCount = events.filter(e => e.status === "drawn").length;
+  const completedCount = events.filter(e => e.status === "completed").length;
+
   const FilterBtn = ({ label, filterKey, value }: { label: string; filterKey: keyof Filters; value: string }) => {
     const active = filters[filterKey] === value;
     return (
@@ -77,7 +81,7 @@ export default function EventsPage() {
 
   return (
     <main style={{ maxWidth: 1000, margin: "0 auto", fontFamily: "system-ui", padding: "24px 16px 60px", color: "#e8e8e8" }}>
-      <h1 style={{ fontSize: "clamp(20px, 5vw, 28px)", fontWeight: 800, marginBottom: 4 }}>IFSA U19 Events</h1>
+      <h1 style={{ fontSize: "clamp(20px, 5vw, 28px)", fontWeight: 800, marginBottom: 4 }}>IFSA Event Hub</h1>
       <p style={{ color: "#aaa", fontSize: 14, marginBottom: 16 }}>2★ and 3★ freeride competitions for U19 athletes.</p>
 
       <input
@@ -88,20 +92,20 @@ export default function EventsPage() {
         style={{ width: "100%", padding: "10px 16px", borderRadius: 10, border: "2px solid #ffcc00", background: "#0e0e0e", color: "#fff", fontSize: 15, fontFamily: "system-ui", marginBottom: 12, boxSizing: "border-box", outline: "none" }}
       />
 
-      <div style={{ border: "1px solid #1e1e1e", borderRadius: 14, padding: "12px 14px", marginBottom: 20, background: "rgba(0,0,0,0.4)", display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ border: "1px solid #1e1e1e", borderRadius: 14, padding: "12px 14px", marginBottom: 16, background: "rgba(0,0,0,0.4)", display: "flex", flexDirection: "column", gap: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
-          <span style={{ fontSize: 11, color: "#aaa", minWidth: 66, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Discipline</span>
+          <span style={{ fontSize: 11, color: "#aaa", minWidth: 80, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Discipline</span>
           <FilterBtn label="All" filterKey="discipline" value="all" />
           <FilterBtn label="Ski" filterKey="discipline" value="ski" />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
-          <span style={{ fontSize: 11, color: "#aaa", minWidth: 66, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Stars</span>
+          <span style={{ fontSize: 11, color: "#aaa", minWidth: 80, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Stars</span>
           <FilterBtn label="All" filterKey="stars" value="all" />
           <FilterBtn label="2★" filterKey="stars" value="2" />
           <FilterBtn label="3★" filterKey="stars" value="3" />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
-          <span style={{ fontSize: 11, color: "#aaa", minWidth: 66, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Status</span>
+          <span style={{ fontSize: 11, color: "#aaa", minWidth: 80, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Status</span>
           <FilterBtn label="All" filterKey="status" value="all" />
           <FilterBtn label="Upcoming" filterKey="status" value="upcoming" />
           <FilterBtn label="Completed" filterKey="status" value="completed" />
@@ -109,7 +113,12 @@ export default function EventsPage() {
         </div>
       </div>
 
-      <div style={{ color: "#aaa", fontSize: 13, marginBottom: 12 }}>Showing {filtered.length} of {events.length} events</div>
+      <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
+        <span style={{ color: "#aaa", fontSize: 13 }}>Showing {filtered.length} of {events.length} events</span>
+        <span style={{ fontSize: 12, color: "#4a9edd", border: "1px solid #1a2a3a", borderRadius: 999, padding: "2px 10px" }}>{upcomingCount} upcoming</span>
+        <span style={{ fontSize: 12, color: "#f0c040", border: "1px solid #3a3a00", borderRadius: 999, padding: "2px 10px" }}>{drawnCount} drawn</span>
+        <span style={{ fontSize: 12, color: "#4caf50", border: "1px solid #1a3a1a", borderRadius: 999, padding: "2px 10px" }}>{completedCount} completed</span>
+      </div>
 
       {filtered.length === 0 && <div style={{ color: "#aaa", fontSize: 14, fontStyle: "italic" }}>No events match your filters.</div>}
 
