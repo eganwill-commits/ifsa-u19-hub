@@ -48,10 +48,7 @@ body {
   background-image: url('/mountain-bg.jpg');
   background-size: cover;
   background-position: center;
-  background-attachment: fixed;
   -webkit-background-size: cover;
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
   background-attachment: fixed;
   background-repeat: no-repeat;
 }
@@ -82,4 +79,14 @@ main, nav {
   color: #000 !important;
   background: #ffcc00 !important;
   box-shadow: 0 0 16px rgba(255, 204, 0, 0.4);
+}
+
+@media (max-width: 768px) {
+  body {
+    background-image: url('/mountain-bg.jpg');
+    background-size: cover;
+    background-position: center top;
+    background-attachment: scroll;
+    background-repeat: no-repeat;
+  }
 }
