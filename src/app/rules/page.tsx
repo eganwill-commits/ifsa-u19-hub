@@ -4,10 +4,16 @@ export default function RulesPage() {
     <main style={{ maxWidth: 1000, margin: '0 auto', padding: '24px 16px 60px', fontFamily: 'system-ui', color: '#e8e8e8' }}>
       <h1 style={{ fontSize: 'clamp(22px, 5vw, 28px)', fontWeight: 800, marginBottom: 4 }}>IFSA Junior Handbook</h1>
       <p style={{ color: '#aaa', fontSize: 14, marginBottom: 16 }}>2026 IFSA Junior Series Rules & Handbook</p>
-      <a href={pdfUrl} target="_blank" rel="noreferrer"
-        style={{ display: 'inline-block', marginBottom: 16, padding: '8px 16px', borderRadius: 8, border: '1px solid #ffcc00', color: '#ffcc00', fontSize: 13, textDecoration: 'none' }}>
-        Open PDF in new tab ↗
-      </a>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        <a href={pdfUrl} target="_blank" rel="noreferrer"
+          style={{ display: 'inline-block', padding: '8px 16px', borderRadius: 8, border: '1px solid #ffcc00', color: '#ffcc00', fontSize: 13, textDecoration: 'none' }}>
+          Open PDF in new tab ↗
+        </a>
+        <a href={`${pdfUrl}#page=39`} target="_blank" rel="noreferrer"
+          style={{ display: 'inline-block', padding: '8px 16px', borderRadius: 8, border: '1px solid #ffcc00', background: '#ffcc00', color: '#000', fontSize: 13, textDecoration: 'none', fontWeight: 700 }}>
+          Junior Points Table (p.39) ↗
+        </a>
+      </div>
       <div style={{ border: '1px solid #2a2a2a', borderRadius: 16, overflow: 'hidden', background: 'rgba(10,10,10,0.8)' }}>
         <iframe
           src={`https://docs.google.com/viewer?url=${encodeURIComponent(pdfUrl)}&embedded=true`}
