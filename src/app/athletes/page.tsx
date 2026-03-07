@@ -18,6 +18,12 @@ export default function AthletesPage() {
   const [results, setResults] = useState<Athlete[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    supabase.from('athletes').select('*', { count: 'exact', head: true })
+      .then(({ count }) => setTotalCount(count));
+  }, [supabase]);
 
   useEffect(() => {
     if (!query.trim()) { setResults([]); setSearched(false); return; }
@@ -39,7 +45,9 @@ export default function AthletesPage() {
   return (
     <main style={{ maxWidth: 1000, margin: '0 auto', padding: '24px 16px 60px', fontFamily: 'system-ui', color: '#e8e8e8' }}>
       <h1 style={{ fontSize: 'clamp(22px, 5vw, 28px)', fontWeight: 800, marginBottom: 4 }}>Athlete Search</h1>
-      <p style={{ color: '#aaa', fontSize: 14, marginBottom: 20 }}>Search 4,341 IFSA U19 athletes by name.</p>
+      <p style={{ color: '#aaa', fontSize: 14, marginBottom: 20 }}>
+        Search {totalCount ? totalCount.toLocaleString() : '...'} IFSA U19 athletes by name.
+      </p>
       <input
         type="text"
         value={query}
@@ -55,14 +63,10 @@ export default function AthletesPage() {
       {!loading && results.length > 0 && (
         <div style={{ display: 'grid', gap: 8 }}>
           {results.map(a => (
-            <a key={a.id} href={'https://liveheats.com/athletes?search=' + encodeURIComponent(a.name)} target="_blank" rel="noreferrer"
-              style={{ textDecoration: 'none', border: '1px solid #1e1e1e', borderRadius: 12, padding: '12px 16px', background: 'rgba(10,10,10,0.8)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#141414')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(10,10,10,0.8)')}
-            >
+            <div key={a.id}
+              style={{ border: '1px solid #1e1e1e', borderRadius: 12, padding: '12px 16px', background: 'rgba(10,10,10,0.8)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontWeight: 600, fontSize: 15, color: '#e8e8e8' }}>{a.name}</span>
-              <span style={{ fontSize: 12, color: '#ffcc00' }}>LiveHeats ↗</span>
-            </a>
+            </div>
           ))}
         </div>
       )}
