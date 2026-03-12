@@ -91,7 +91,7 @@ export default function WeatherPanel({ lat, lon }: { lat: number; lon: number })
         rel="noreferrer"
         style={{ display: "inline-block", fontSize: 12, color: "#aaa", border: "1px solid #2a2a2a", borderRadius: 8, padding: "6px 14px", textDecoration: "none" }}
       >
-        Full forecast ↗
+        Full forecast &rarr;
       </a>
     </div>
   );
