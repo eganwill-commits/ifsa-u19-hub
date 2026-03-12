@@ -83,7 +83,7 @@ export default function WeatherPanel({ lat, lon }: { lat: number; lon: number })
         })}
       </div>
 
-      <a href={weatherUrl} target="_blank" rel="noreferrer" style={{ display: "inline-block", fontSize: 12, color: "#aaa", border: "1px solid #2a2a2a", borderRadius: 8, padding: "6px 14px", textDecoration: "none" }}>
+<a href={weatherUrl} target="_blank" rel="noreferrer" style={{ display: "inline-block", fontSize: 13, color: "#ffcc00", border: "1px solid #ffcc00", borderRadius: 8, padding: "6px 14px", textDecoration: "none" }}>
         Full forecast
       </a>
     </div>
