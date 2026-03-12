@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import WeatherPanel from "@/components/WeatherPanel";
 
 type EventRow = {
   id: string;
@@ -16,6 +17,8 @@ type EventRow = {
   end_date: string | null;
   venue_name: string | null;
   location_text: string | null;
+  lat: number | null;
+  lon: number | null;
 };
 
 const STATUS_COLORS: Record<string, { bg: string; color: string; border: string }> = {
@@ -103,6 +106,16 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
           </div>
         ))}
       </div>
+
+      {e.lat && e.lon && (
+        <div style={{ border: "1px solid #2a2a2a", borderRadius: 16, padding: "20px", marginBottom: 16, background: "rgba(10,10,10,0.8)" }}>
+          <h2 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 700 }}>
+            Resort Weather
+            {e.location_text && <span style={{ fontSize: 12, color: "#555", fontWeight: 400, marginLeft: 8 }}>{e.location_text}</span>}
+          </h2>
+          <WeatherPanel lat={e.lat} lon={e.lon} />
+        </div>
+      )}
 
       <div style={{ border: "1px solid #2a2a2a", borderRadius: 16, overflow: "hidden", background: "rgba(10,10,10,0.8)" }}>
         <div style={{ padding: "16px 20px", borderBottom: "1px solid #2a2a2a" }}>
