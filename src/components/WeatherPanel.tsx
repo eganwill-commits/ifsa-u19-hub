@@ -27,7 +27,7 @@ export default function WeatherPanel({ lat, lon }: { lat: number; lon: number })
       "https://api.open-meteo.com/v1/forecast?latitude=" + lat + "&longitude=" + lon +
       "&current=temperature_2m,weathercode,windspeed_10m,relativehumidity_2m,snowfall" +
       "&daily=weathercode,temperature_2m_max,temperature_2m_min,snowfall_sum,windspeed_10m_max" +
-      "&forecast_days=5&temperature_unit=celsius&windspeed_unit=kmh&timezone=auto"
+      "&forecast_days=5&temperature_unit=fahrenheit&windspeed_unit=kmh&timezone=auto"
     )
       .then(function(r) { return r.json(); })
       .then(setData)
@@ -46,7 +46,7 @@ export default function WeatherPanel({ lat, lon }: { lat: number; lon: number })
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
         <span style={{ fontSize: 42, lineHeight: 1 }}>{current.icon}</span>
         <div>
-          <div style={{ fontSize: 36, fontWeight: 800, lineHeight: 1 }}>{Math.round(c.temperature_2m)}C</div>
+          <div style={{ fontSize: 36, fontWeight: 800, lineHeight: 1 }}>{Math.round(c.temperature_2m)}F</div>
           <div style={{ fontSize: 13, color: "#4a9edd", marginTop: 2 }}>{current.label}</div>
         </div>
       </div>
@@ -75,15 +75,15 @@ export default function WeatherPanel({ lat, lon }: { lat: number; lon: number })
             <div key={day} style={{ background: i === 0 ? "rgba(74,158,221,0.1)" : "rgba(255,255,255,0.03)", border: "1px solid " + (i === 0 ? "#1a2a3a" : "#2a2a2a"), borderRadius: 10, padding: "10px 8px", textAlign: "center" }}>
               <div style={{ fontSize: 10, color: "#aaa", marginBottom: 6, fontFamily: "monospace" }}>{i === 0 ? "TODAY" : fmtDay(day).toUpperCase()}</div>
               <div style={{ fontSize: 22, marginBottom: 6 }}>{dayWeather.icon}</div>
-              <div style={{ fontSize: 13, fontWeight: 700 }}>{Math.round(data.daily.temperature_2m_max[i])}C</div>
-              <div style={{ fontSize: 11, color: "#aaa" }}>{Math.round(data.daily.temperature_2m_min[i])}C</div>
+              <div style={{ fontSize: 13, fontWeight: 700 }}>{Math.round(data.daily.temperature_2m_max[i])}F</div>
+              <div style={{ fontSize: 11, color: "#aaa" }}>{Math.round(data.daily.temperature_2m_min[i])}F</div>
               {snow > 0 && <div style={{ fontSize: 10, color: "#4a9edd", marginTop: 4 }}>snow {snow}cm</div>}
             </div>
           );
         })}
       </div>
 
-<a href={weatherUrl} target="_blank" rel="noreferrer" style={{ display: "inline-block", fontSize: 13, color: "#ffcc00", border: "1px solid #ffcc00", borderRadius: 8, padding: "6px 14px", textDecoration: "none" }}>
+      <a href={weatherUrl} target="_blank" rel="noreferrer" style={{ display: "inline-block", fontSize: 13, color: "#ffcc00", border: "1px solid #ffcc00", borderRadius: 8, padding: "6px 14px", textDecoration: "none" }}>
         Full forecast
       </a>
     </div>
