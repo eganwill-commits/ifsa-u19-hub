@@ -9,11 +9,11 @@ export async function POST(req: Request) {
     const { question } = await req.json();
     const sb = supabaseServer();
 
-    // Pull relevant data from Supabase
-    const [{ data: events }, { data: athletes }, { data: rankings }] = await Promise.all([
+    const [{ data: events }, { data: athletes }, { data: results }, { data: rankings }] = await Promise.all([
       sb.from("ifsa_events").select("name, status, start_date, end_date, venue_name, location_text, stars, discipline, gender").order("start_date", { ascending: false }).limit(200),
       sb.from("athletes").select("*").limit(500),
-      sb.from("rankings").select("*").limit(500),
+      sb.from("event_results").select("*").limit(500),
+      sb.from("rankings_snapshots").select("*").limit(500),
     ]);
 
     const context = `
@@ -26,6 +26,9 @@ ${JSON.stringify(events ?? [], null, 2)}
 
 ATHLETES:
 ${JSON.stringify(athletes ?? [], null, 2)}
+
+EVENT RESULTS:
+${JSON.stringify(results ?? [], null, 2)}
 
 RANKINGS:
 ${JSON.stringify(rankings ?? [], null, 2)}
