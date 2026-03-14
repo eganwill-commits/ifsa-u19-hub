@@ -19,16 +19,3 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   );
 }
-```
-
----
-
-## Add your Anthropic API key to Vercel
-
-Go to **Vercel dashboard → ifsa-u19-hub → Settings → Environment Variables** and add:
-- Key: `ANTHROPIC_API_KEY`
-- Value: your Anthropic API key
-
-Also add it to your local `.env.local` file:
-```
-ANTHROPIC_API_KEY=your_key_here
