@@ -4,6 +4,18 @@ const https = require('https');
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
+const SERIES_ID = 53121;
+const DIVISIONS = [
+  { id: 77447, name: 'U19 Ski Men',         discipline: 'ski',        gender: 'men'   },
+  { id: 77446, name: 'U19 Ski Women',        discipline: 'ski',        gender: 'women' },
+  { id: 77454, name: 'U19 Snowboard Men',    discipline: 'snowboard',  gender: 'men'   },
+  { id: 77453, name: 'U19 Snowboard Women',  discipline: 'snowboard',  gender: 'women' },
+  { id: 77445, name: 'U15 Ski Men',          discipline: 'ski',        gender: 'men'   },
+  { id: 77451, name: 'U15 Ski Women',        discipline: 'ski',        gender: 'women' },
+  { id: 77449, name: 'U15 Snowboard Men',    discipline: 'snowboard',  gender: 'men'   },
+  { id: 77452, name: 'U15 Snowboard Women',  discipline: 'snowboard',  gender: 'women' },
+];
+
 function graphql(query) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({ query });
@@ -52,79 +64,57 @@ function supabaseRequest(method, path, body) {
 }
 
 async function main() {
-  const events = await supabaseRequest('GET', '/rest/v1/ifsa_events?select=id,name,discipline,gender,stars,start_date,liveheats_url&liveheats_url=not.is.null&status=eq.completed');
-  console.log(`Found ${events.length} completed events with LiveHeats URLs`);
+  const allRankings = [];
 
-  const results = [];
-
-  for (const event of events) {
+  for (const div of DIVISIONS) {
+    console.log(`Fetching ${div.name}...`);
     try {
-      const match = event.liveheats_url.match(/events\/(\d+)/);
-      if (!match) continue;
-      const eventId = match[1];
-
-      const data = await graphql(`query {
-        event(id: ${eventId}) {
-          name
-          eventDivisions {
-            division {
+      const result = await graphql(`query {
+        series(id: ${SERIES_ID}) {
+          rankings(divisionId: ${div.id}) {
+            place
+            points
+            athlete {
+              id
               name
-            }
-            leaderboards {
-              result {
-                place
-                total
-                athleteId
-                competitor {
-                  athlete {
-                    id
-                    name
-                  }
-                }
-              }
             }
           }
         }
       }`);
 
-      const divisions = data?.data?.event?.eventDivisions || [];
-      for (const div of divisions) {
-        const divName = div.division?.name || 'Unknown';
-        for (const lb of div.leaderboards || []) {
-          for (const r of lb.result || []) {
-            if (!r.athleteId || !r.place) continue;
-            results.push({
-              athlete_id: String(r.athleteId),
-              athlete_name: r.competitor?.athlete?.name || null,
-              event_id: event.id,
-              event_name: event.name,
-              division: divName,
-              discipline: event.discipline,
-              gender: event.gender,
-              stars: event.stars,
-              place: r.place,
-              score: r.total ?? null,
-              event_date: event.start_date,
-              updated_at: new Date().toISOString(),
-            });
-          }
-        }
+      const rankings = result?.data?.series?.rankings || [];
+      console.log(`  Found ${rankings.length} athletes`);
+
+      for (const r of rankings) {
+        if (!r.athlete?.id) continue;
+        allRankings.push({
+          athlete_id: String(r.athlete.id),
+          athlete_name: r.athlete.name,
+          division: div.name,
+          place: r.place,
+          points: r.points ?? null,
+          discipline: div.discipline,
+          gender: div.gender,
+          event_id: null,
+          event_name: null,
+          event_date: null,
+          stars: null,
+          score: null,
+          updated_at: new Date().toISOString(),
+        });
       }
-      process.stdout.write(`✓ ${results.length} results from ${events.indexOf(event) + 1}/${events.length} events\r`);
       await new Promise(r => setTimeout(r, 300));
     } catch (e) {
-      console.log(`\n✗ Error on ${event.name}: ${e.message}`);
+      console.log(`  Error: ${e.message}`);
     }
   }
 
-  console.log(`\nFound ${results.length} total results, saving to Supabase...`);
-
-  // Clear old data first
+  console.log(`\nTotal: ${allRankings.length} rankings, clearing old data...`);
   await supabaseRequest('DELETE', '/rest/v1/rankings_snapshots?id=not.is.null');
 
-  for (let i = 0; i < results.length; i += 50) {
-    await supabaseRequest('POST', '/rest/v1/rankings_snapshots', results.slice(i, i + 50));
-    process.stdout.write(`Saved ${Math.min(i + 50, results.length)}/${results.length}\r`);
+  for (let i = 0; i < allRankings.length; i += 50) {
+    await supabaseRequest('POST', '/rest/v1/rankings_snapshots', allRankings.slice(i, i + 50));
+    process.stdout.write(`Saved ${Math.min(i + 50, allRankings.length)}/${allRankings.length}\r`);
   }
 
   console.log('\nDone!');
