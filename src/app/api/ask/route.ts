@@ -9,25 +9,29 @@ export async function POST(req: Request) {
     const { question } = await req.json();
     const sb = supabaseServer();
 
-    const [{ data: events }, { data: athletes }, { data: rankings }] = await Promise.all([
-      sb.from("ifsa_events").select("name, status, start_date, end_date, venue_name, location_text, stars, discipline, gender").order("start_date", { ascending: false }).limit(200),
-      sb.from("athletes").select("id, name, liveheats_url").limit(1000),
-      sb.from("rankings_snapshots").select("athlete_name, athlete_id, event_name, division, discipline, gender, stars, place, score, event_date").order("event_date", { ascending: false }).limit(2000),
+    const [{ data: events }, { data: rankings }] = await Promise.all([
+      sb.from("ifsa_events")
+        .select("name, status, start_date, end_date, venue_name, location_text, stars, discipline, gender")
+        .order("start_date", { ascending: false })
+        .limit(200),
+      sb.from("rankings_snapshots")
+        .select("athlete_name, athlete_id, division, discipline, gender, place, points, event_name, event_date, score")
+        .order("place", { ascending: true })
+        .limit(3000),
     ]);
 
     const context = `
-You are an AI assistant for the IFSA Junior Freeride Hub — a platform tracking U19 freeride ski and snowboard competitions.
-Answer questions about athletes, events, rankings, and results using the data below.
-Be concise and helpful. If asked about an athlete's ranking or results, search the rankings data by athlete_name.
-If you don't know something or it's not in the data, say so clearly.
+You are an AI assistant for the IFSA Junior Freeride Hub — a platform tracking U19 and U15 freeride ski and snowboard competitions.
+Answer questions about athletes, events, and rankings using the data below.
+When asked about an athlete, always search thoroughly through the rankings data by athlete_name before saying they are not found.
+Report findings directly and confidently. Do not say you cannot find someone if they appear in the data.
+If an athlete appears in multiple divisions, report all of them.
+Be concise and direct.
 
 EVENTS (${events?.length ?? 0} total):
 ${JSON.stringify(events ?? [], null, 2)}
 
-ATHLETES (${athletes?.length ?? 0} total):
-${JSON.stringify(athletes ?? [], null, 2)}
-
-EVENT RESULTS & RANKINGS (${rankings?.length ?? 0} total):
+RANKINGS (${rankings?.length ?? 0} total — includes place, points, division for each athlete):
 ${JSON.stringify(rankings ?? [], null, 2)}
     `.trim();
 
