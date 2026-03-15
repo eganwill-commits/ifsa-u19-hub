@@ -16,18 +16,12 @@ function extractName(question: string): string | null {
   return null;
 }
 
-function extractEventName(question: string): string | null {
-  const keywords = ['at', 'in', 'for', 'from', 'results', 'winners', 'who won'];
-  const q = question.toLowerCase();
-  for (const kw of keywords) {
-    const idx = q.indexOf(kw);
-    if (idx !== -1) {
-      const after = question.slice(idx + kw.length).trim();
-      const words = after.split(/\s+/).slice(0, 4).join(' ');
-      if (words.length > 3) return words;
-    }
-  }
-  return null;
+// Extract any capitalized words that might be a resort/event name
+function extractKeywords(question: string): string[] {
+  const stopWords = new Set(['who', 'what', 'where', 'when', 'how', 'the', 'at', 'in', 'for', 'did', 'won', 'win', 'place', 'finish', 'results', 'from', 'and', 'or', 'is', 'are', 'was', 'were', 'show', 'me', 'tell', 'get', 'give', 'find']);
+  return question.split(/\s+/)
+    .map(w => w.replace(/[^a-zA-Z]/g, ''))
+    .filter(w => w.length > 2 && !stopWords.has(w.toLowerCase()));
 }
 
 export async function POST(req: Request) {
@@ -36,21 +30,19 @@ export async function POST(req: Request) {
     const sb = supabaseServer();
 
     const athleteName = extractName(question);
-    const eventKeyword = extractEventName(question);
-
-    const isEventQuestion = /who won|results|winner|podium|place|finish|division/.test(question.toLowerCase());
-    const isAthleteQuestion = /ranking|rank|points|standing|athlete/.test(question.toLowerCase()) || !!athleteName;
+    const keywords = extractKeywords(question);
+    const isEventQuestion = /who won|results|winner|podium|place|finish|division|competed/.test(question.toLowerCase());
 
     let rankingsData: any[] = [];
     let eventResultsData: any[] = [];
 
-    if (isAthleteQuestion && athleteName) {
+    if (athleteName) {
       const parts = athleteName.split(' ');
-      const { data } = await sb.from("rankings_snapshots")
+      const { data: rankings } = await sb.from("rankings_snapshots")
         .select("athlete_name, division, place, points, discipline, gender")
         .or(`athlete_name.ilike.%${athleteName}%,athlete_name.ilike.%${parts[0]}%`)
         .limit(50);
-      rankingsData = data ?? [];
+      rankingsData = rankings ?? [];
 
       const { data: results } = await sb.from("event_results")
         .select("athlete_name, event_name, division, place, score, event_date")
@@ -58,19 +50,39 @@ export async function POST(req: Request) {
         .order("event_date", { ascending: false })
         .limit(20);
       eventResultsData = results ?? [];
-    } else if (isEventQuestion && eventKeyword) {
-      const { data } = await sb.from("event_results")
-        .select("athlete_name, event_name, division, place, score, event_date")
-        .ilike("event_name", '%' + eventKeyword + '%')
-        .order("place", { ascending: true })
-        .limit(100);
-      eventResultsData = data ?? [];
-    } else {
-      const { data: r } = await sb.from("rankings_snapshots")
+    }
+
+    if (isEventQuestion && keywords.length > 0) {
+      // Try each keyword against event_results event_name
+      for (const kw of keywords) {
+        const { data } = await sb.from("event_results")
+          .select("athlete_name, event_name, division, place, score, event_date")
+          .ilike("event_name", '%' + kw + '%')
+          .order("place", { ascending: true })
+          .limit(100);
+        if (data && data.length > 0) {
+          eventResultsData = [...eventResultsData, ...data];
+          break;
+        }
+      }
+    }
+
+    // Deduplicate event results
+    const seen = new Set();
+    eventResultsData = eventResultsData.filter(r => {
+      const key = r.athlete_name + r.event_name + r.division + r.place;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    // Always load top rankings if no specific athlete
+    if (rankingsData.length === 0 && !athleteName) {
+      const { data } = await sb.from("rankings_snapshots")
         .select("athlete_name, division, place, points")
         .order("place", { ascending: true })
         .limit(200);
-      rankingsData = r ?? [];
+      rankingsData = data ?? [];
     }
 
     const { data: events } = await sb.from("ifsa_events")
@@ -81,9 +93,9 @@ export async function POST(req: Request) {
     const context = `
 You are an AI assistant for the IFSA Junior Freeride Hub — a platform tracking U19 and U15 freeride ski and snowboard competitions.
 Answer questions about athletes, events, and rankings using the data below.
-Report findings directly and confidently. Never say an athlete or result is not found if it appears in the data.
-If asked about event results or winners, use the EVENT RESULTS data.
-If asked about rankings or standings, use the SEASON RANKINGS data.
+Report findings directly and confidently. Never say results are unavailable if they appear in the data.
+If asked about event results or winners, use EVENT RESULTS data.
+If asked about rankings or standings, use SEASON RANKINGS data.
 Be concise and direct.
 
 EVENTS (${events?.length ?? 0} total):
