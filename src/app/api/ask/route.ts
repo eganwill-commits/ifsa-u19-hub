@@ -5,15 +5,14 @@ import Anthropic from "@anthropic-ai/sdk";
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 function extractName(question: string): string | null {
-  const stopWords = new Set(['who', 'what', 'where', 'when', 'how', 'the', 'at', 'in', 'for', 'did', 'won', 'win', 'place', 'finish', 'results', 'from', 'and', 'or', 'is', 'are', 'was', 'were', 'show', 'me', 'tell', 'get', 'give', 'find', 'does', 'has', 'have', 'his', 'her', 'their', 'ranking', 'rank', 'points', 'standing', 'division', 'event', 'competition']);
+  const stopWords = new Set(['who', 'what', 'where', 'when', 'how', 'the', 'at', 'in', 'for', 'did', 'won', 'win', 'place', 'finish', 'results', 'from', 'and', 'or', 'is', 'are', 'was', 'were', 'show', 'me', 'tell', 'get', 'give', 'find', 'does', 'has', 'have', 'his', 'her', 'their', 'ranking', 'rank', 'points', 'standing', 'division', 'event', 'competition', 'athlete', 'season', 'current', 'about', 'much', 'many', 'some', 'any', 'its', 'this', 'that', 'with', 'not', 'can', 'will', 'just', 'into', 'than', 'then', 'also', 'should', 'could', 'would', 'which', 'there', 'they', 'ifsa', 'junior', 'ski', 'snowboard', 'men', 'women', 'u19', 'u15']);
   const words = question.split(/\s+/);
   for (let i = 0; i < words.length - 1; i++) {
     const w1 = words[i].replace(/[^a-zA-Z]/g, '');
     const w2 = words[i + 1].replace(/[^a-zA-Z]/g, '');
     if (
-      w1.length > 1 && w2.length > 1 &&
-      w1[0] === w1[0].toUpperCase() &&
-      w2[0] === w2[0].toUpperCase() &&
+      w1.length > 1 &&
+      w2.length > 1 &&
       !stopWords.has(w1.toLowerCase()) &&
       !stopWords.has(w2.toLowerCase())
     ) {
@@ -43,7 +42,6 @@ export async function POST(req: Request) {
     let eventResultsData: any[] = [];
 
     if (athleteName) {
-      // Always search by full name first
       const [{ data: rankings }, { data: results }] = await Promise.all([
         sb.from("rankings_snapshots")
           .select("athlete_name, division, place, points, discipline, gender")
@@ -59,7 +57,6 @@ export async function POST(req: Request) {
       eventResultsData = results ?? [];
     }
 
-    // Search event results by keyword if it looks like an event question
     if (isEventQuestion && eventResultsData.length === 0 && keywords.length > 0) {
       for (const kw of keywords) {
         if (kw.length < 4) continue;
@@ -75,7 +72,6 @@ export async function POST(req: Request) {
       }
     }
 
-    // Fall back to top rankings if nothing specific found
     if (rankingsData.length === 0 && eventResultsData.length === 0) {
       const { data } = await sb.from("rankings_snapshots")
         .select("athlete_name, division, place, points")
