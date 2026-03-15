@@ -9,28 +9,25 @@ export async function POST(req: Request) {
     const { question } = await req.json();
     const sb = supabaseServer();
 
-    const [{ data: events }, { data: athletes }, { data: results }, { data: rankings }] = await Promise.all([
+    const [{ data: events }, { data: athletes }, { data: rankings }] = await Promise.all([
       sb.from("ifsa_events").select("name, status, start_date, end_date, venue_name, location_text, stars, discipline, gender").order("start_date", { ascending: false }).limit(200),
-      sb.from("athletes").select("*").limit(500),
-      sb.from("event_results").select("*").limit(500),
-      sb.from("rankings_snapshots").select("*").limit(500),
+      sb.from("athletes").select("id, name, liveheats_url").limit(1000),
+      sb.from("rankings_snapshots").select("athlete_name, athlete_id, event_name, division, discipline, gender, stars, place, score, event_date").order("event_date", { ascending: false }).limit(2000),
     ]);
 
     const context = `
 You are an AI assistant for the IFSA Junior Freeride Hub — a platform tracking U19 freeride ski and snowboard competitions.
 Answer questions about athletes, events, rankings, and results using the data below.
-Be concise and helpful. If you don't know something or it's not in the data, say so clearly.
+Be concise and helpful. If asked about an athlete's ranking or results, search the rankings data by athlete_name.
+If you don't know something or it's not in the data, say so clearly.
 
-EVENTS:
+EVENTS (${events?.length ?? 0} total):
 ${JSON.stringify(events ?? [], null, 2)}
 
-ATHLETES:
+ATHLETES (${athletes?.length ?? 0} total):
 ${JSON.stringify(athletes ?? [], null, 2)}
 
-EVENT RESULTS:
-${JSON.stringify(results ?? [], null, 2)}
-
-RANKINGS:
+EVENT RESULTS & RANKINGS (${rankings?.length ?? 0} total):
 ${JSON.stringify(rankings ?? [], null, 2)}
     `.trim();
 
