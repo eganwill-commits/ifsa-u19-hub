@@ -42,21 +42,18 @@ export async function POST(req: Request) {
     let rankingsData: any[] = [];
     let eventResultsData: any[] = [];
 
-    // Always search by athlete name if one is detected
     if (athleteName) {
-      const parts = athleteName.split(' ');
-      const nameFilter = `athlete_name.ilike.%${athleteName}%,athlete_name.ilike.%${parts[0]}%${parts[1] ? ',athlete_name.ilike.%' + parts[1] + '%' : ''}`;
-
+      // Always search by full name first
       const [{ data: rankings }, { data: results }] = await Promise.all([
         sb.from("rankings_snapshots")
           .select("athlete_name, division, place, points, discipline, gender")
-          .or(nameFilter)
-          .limit(50),
+          .ilike("athlete_name", '%' + athleteName + '%')
+          .limit(20),
         sb.from("event_results")
           .select("athlete_name, event_name, division, place, score, event_date")
-          .or(nameFilter)
+          .ilike("athlete_name", '%' + athleteName + '%')
           .order("event_date", { ascending: false })
-          .limit(30),
+          .limit(20),
       ]);
       rankingsData = rankings ?? [];
       eventResultsData = results ?? [];
