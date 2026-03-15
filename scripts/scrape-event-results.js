@@ -126,7 +126,6 @@ async function main() {
             allResults.push({
               athlete_id: String(result.athleteId),
               athlete_name: result.competitor && result.competitor.athlete ? result.competitor.athlete.name : null,
-              event_id: event.id,
               event_name: event.name,
               division: divName,
               discipline: event.discipline,
