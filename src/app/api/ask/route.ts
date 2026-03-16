@@ -4,29 +4,25 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-function extractName(question: string): string | null {
-  const stopWords = new Set(['who', 'what', 'where', 'when', 'how', 'the', 'at', 'in', 'for', 'did', 'won', 'win', 'place', 'finish', 'results', 'from', 'and', 'or', 'is', 'are', 'was', 'were', 'show', 'me', 'tell', 'get', 'give', 'find', 'does', 'has', 'have', 'his', 'her', 'their', 'ranking', 'rank', 'points', 'standing', 'division', 'event', 'competition', 'athlete', 'season', 'current', 'about', 'much', 'many', 'some', 'any', 'its', 'this', 'that', 'with', 'not', 'can', 'will', 'just', 'into', 'than', 'then', 'also', 'should', 'could', 'would', 'which', 'there', 'they', 'ifsa', 'junior', 'ski', 'snowboard', 'men', 'women', 'u19', 'u15']);
-  const words = question.split(/\s+/);
+const STOP_WORDS = new Set(['who', 'what', 'where', 'when', 'how', 'the', 'at', 'in', 'for', 'did', 'won', 'win', 'place', 'finish', 'results', 'from', 'and', 'or', 'is', 'are', 'was', 'were', 'show', 'me', 'tell', 'get', 'give', 'find', 'does', 'has', 'have', 'his', 'her', 'their', 'ranking', 'rank', 'points', 'standing', 'division', 'event', 'competition', 'athlete', 'season', 'current', 'about', 'much', 'many', 'some', 'any', 'its', 'this', 'that', 'with', 'not', 'can', 'will', 'just', 'into', 'than', 'then', 'also', 'should', 'could', 'would', 'which', 'there', 'they', 'ifsa', 'junior', 'ski', 'snowboard', 'men', 'women', 'u19', 'u15', 'do', 'my', 'your', 'our', 'its', 'all', 'an', 'a', 'of', 'to', 'up', 'out', 'on', 'by', 'as', 'if', 'be', 'it', 'no', 'so']);
+
+function getCandidateNames(question: string): string[] {
+  const words = question.toLowerCase().split(/\s+/).map(w => w.replace(/[^a-z]/g, ''));
+  const candidates: string[] = [];
   for (let i = 0; i < words.length - 1; i++) {
-    const w1 = words[i].replace(/[^a-zA-Z]/g, '');
-    const w2 = words[i + 1].replace(/[^a-zA-Z]/g, '');
-    if (
-      w1.length > 1 &&
-      w2.length > 1 &&
-      !stopWords.has(w1.toLowerCase()) &&
-      !stopWords.has(w2.toLowerCase())
-    ) {
-      return w1 + ' ' + w2;
+    const w1 = words[i];
+    const w2 = words[i + 1];
+    if (w1.length > 1 && w2.length > 1 && !STOP_WORDS.has(w1) && !STOP_WORDS.has(w2)) {
+      candidates.push(w1 + ' ' + w2);
     }
   }
-  return null;
+  return candidates;
 }
 
 function extractKeywords(question: string): string[] {
-  const stopWords = new Set(['who', 'what', 'where', 'when', 'how', 'the', 'at', 'in', 'for', 'did', 'won', 'win', 'place', 'finish', 'results', 'from', 'and', 'or', 'is', 'are', 'was', 'were', 'show', 'me', 'tell', 'get', 'give', 'find', 'does', 'has', 'have']);
   return question.split(/\s+/)
     .map(w => w.replace(/[^a-zA-Z]/g, ''))
-    .filter(w => w.length > 2 && !stopWords.has(w.toLowerCase()));
+    .filter(w => w.length > 3 && !STOP_WORDS.has(w.toLowerCase()));
 }
 
 export async function POST(req: Request) {
@@ -34,29 +30,35 @@ export async function POST(req: Request) {
     const { question } = await req.json();
     const sb = supabaseServer();
 
-    const athleteName = extractName(question);
+    const candidates = getCandidateNames(question);
     const keywords = extractKeywords(question);
     const isEventQuestion = /who won|results|winner|podium|competed|finished|placed/.test(question.toLowerCase());
 
     let rankingsData: any[] = [];
     let eventResultsData: any[] = [];
 
-    if (athleteName) {
+    // Try each candidate name until we find a match
+    for (const name of candidates) {
       const [{ data: rankings }, { data: results }] = await Promise.all([
         sb.from("rankings_snapshots")
           .select("athlete_name, division, place, points, discipline, gender")
-          .ilike("athlete_name", '%' + athleteName + '%')
+          .ilike("athlete_name", '%' + name + '%')
           .limit(20),
         sb.from("event_results")
           .select("athlete_name, event_name, division, place, score, event_date")
-          .ilike("athlete_name", '%' + athleteName + '%')
+          .ilike("athlete_name", '%' + name + '%')
           .order("event_date", { ascending: false })
           .limit(20),
       ]);
-      rankingsData = rankings ?? [];
-      eventResultsData = results ?? [];
+
+      if ((rankings && rankings.length > 0) || (results && results.length > 0)) {
+        rankingsData = rankings ?? [];
+        eventResultsData = results ?? [];
+        break;
+      }
     }
 
+    // Search event results by keyword if it looks like an event question
     if (isEventQuestion && eventResultsData.length === 0 && keywords.length > 0) {
       for (const kw of keywords) {
         if (kw.length < 4) continue;
@@ -72,6 +74,7 @@ export async function POST(req: Request) {
       }
     }
 
+    // Fall back to top rankings if nothing found
     if (rankingsData.length === 0 && eventResultsData.length === 0) {
       const { data } = await sb.from("rankings_snapshots")
         .select("athlete_name, division, place, points")
