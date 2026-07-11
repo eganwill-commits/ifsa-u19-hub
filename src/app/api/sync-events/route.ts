@@ -63,7 +63,7 @@ export async function POST() {
     );
 
     const { error } = await sb.from("ifsa_events").upsert(payload, {
-      onConflict: "ifsa_url",
+      onConflict: "ifsa_url,division",
     });
 
     if (error) {
