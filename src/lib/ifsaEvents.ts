@@ -162,7 +162,7 @@ export async function fetchIfsaU19_2star_3star(): Promise<any[]> {
     const upcoming = await scrapePage(src.url, src.division, src.discipline, src.gender, "upcoming");
     const past = await scrapePage(src.url + "?eventDisplay=past", src.division, src.discipline, src.gender, "completed");
     for (const c of [...upcoming, ...past]) {
-      if (!map.has(c.href)) map.set(c.href, c);
+      if (!map.has(c.href + "|" + c.division)) map.set(c.href + "|" + c.division, c);
     }
   }
 
@@ -170,7 +170,7 @@ export async function fetchIfsaU19_2star_3star(): Promise<any[]> {
   for (const src of COMPETITION_SOURCES) {
     const events = await scrapePage(src.url, src.division, src.discipline, undefined, "upcoming");
     for (const c of events) {
-      if (!map.has(c.href)) map.set(c.href, c);
+      if (!map.has(c.href + "|" + c.division)) map.set(c.href + "|" + c.division, c);
     }
   }
 
