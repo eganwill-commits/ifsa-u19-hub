@@ -21,7 +21,6 @@ export async function POST() {
     const sb = supabaseServer();
     const events = await fetchIfsaU19_2star_3star();
 
-    // Fetch existing lat/lon so we don't overwrite already-geocoded events
     const { data: existing } = await sb
       .from("ifsa_events")
       .select("ifsa_url, lat, lon");
@@ -36,7 +35,6 @@ export async function POST() {
         let lat = prev?.lat ?? null;
         let lon = prev?.lon ?? null;
 
-        // Only geocode if we don't have coordinates yet
         if ((!lat || !lon) && e.location_text) {
           const coords = await geocode(e.location_text);
           if (coords) {
@@ -50,6 +48,7 @@ export async function POST() {
           stars: e.stars,
           discipline: e.discipline,
           gender: e.gender,
+          division: e.division,
           ifsa_url: e.ifsa_url,
           status: e.status ?? "upcoming",
           updated_at: new Date().toISOString(),

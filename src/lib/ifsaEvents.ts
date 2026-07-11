@@ -77,10 +77,18 @@ async function fetchEventDetails(ifsaUrl: string): Promise<{
 }
 
 const SOURCES = [
-  { discipline: "ski", gender: "men", url: "https://ifsafreeride.org/events/category/u19-ski-men/" },
-  { discipline: "ski", gender: "women", url: "https://ifsafreeride.org/events/category/u19-ski-women/" },
-  { discipline: "snowboard", gender: "men", url: "https://ifsafreeride.org/events/category/u19-snowboard-men/" },
-  { discipline: "snowboard", gender: "women", url: "https://ifsafreeride.org/events/category/u19-snowboard-women/" },
+  { discipline: "ski",       gender: "men",   division: "U19", url: "https://ifsafreeride.org/events/category/u19-ski-men/" },
+  { discipline: "ski",       gender: "women", division: "U19", url: "https://ifsafreeride.org/events/category/u19-ski-women/" },
+  { discipline: "snowboard", gender: "men",   division: "U19", url: "https://ifsafreeride.org/events/category/u19-snowboard-men/" },
+  { discipline: "snowboard", gender: "women", division: "U19", url: "https://ifsafreeride.org/events/category/u19-snowboard-women/" },
+  { discipline: "ski",       gender: "men",   division: "U15", url: "https://ifsafreeride.org/events/category/u15-ski-men/" },
+  { discipline: "ski",       gender: "women", division: "U15", url: "https://ifsafreeride.org/events/category/u15-ski-women/" },
+  { discipline: "snowboard", gender: "men",   division: "U15", url: "https://ifsafreeride.org/events/category/u15-snowboard-men/" },
+  { discipline: "snowboard", gender: "women", division: "U15", url: "https://ifsafreeride.org/events/category/u15-snowboard-women/" },
+  { discipline: "ski",       gender: "men",   division: "U12", url: "https://ifsafreeride.org/events/category/junior-ski-12/" },
+  { discipline: "ski",       gender: "women", division: "U12", url: "https://ifsafreeride.org/events/category/junior-ski-women-12/" },
+  { discipline: "snowboard", gender: "men",   division: "U12", url: "https://ifsafreeride.org/events/category/junior-snowboard-12/" },
+  { discipline: "snowboard", gender: "women", division: "U12", url: "https://ifsafreeride.org/events/category/junior-snowboard-women-12/" },
 ];
 
 function parseStarsFromNameOrText(text: string): number | null {
@@ -90,7 +98,7 @@ function parseStarsFromNameOrText(text: string): number | null {
   return m2 ? m2[0].length : null;
 }
 
-async function scrapeEventList(url: string, discipline: string, gender: string, status: string): Promise<any[]> {
+async function scrapeEventList(url: string, discipline: string, gender: string, division: string, status: string, requireStars: boolean): Promise<any[]> {
   const res = await fetch(url, {
     headers: {
       "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Safari/605.1.15",
@@ -113,7 +121,7 @@ async function scrapeEventList(url: string, discipline: string, gender: string, 
     const name = link.text().replace(/\s+/g, " ").trim();
     if (!name) return;
     const stars = parseStarsFromNameOrText(name);
-    if (stars !== 2 && stars !== 3) return;
+    if (requireStars && stars !== 2 && stars !== 3) return;
     const wrapper = link.closest(".tribe-events-calendar-list__event, article, li, div");
     const cardText = wrapper.text().replace(/\s+/g, " ").trim();
     const statusMatch = cardText.match(/\b(upcoming|drawn|completed|cancelled|scheduled|results_published)\b/i);
@@ -124,6 +132,7 @@ async function scrapeEventList(url: string, discipline: string, gender: string, 
       status: statusMatch?.[0]?.toLowerCase() ?? status,
       discipline,
       gender,
+      division,
     });
   });
 
@@ -134,10 +143,9 @@ export async function fetchIfsaU19_2star_3star(): Promise<any[]> {
   const out: any[] = [];
 
   for (const src of SOURCES) {
-    // Fetch upcoming events
-    const upcoming = await scrapeEventList(src.url, src.discipline, src.gender, "upcoming");
-    // Fetch past events
-    const past = await scrapeEventList(src.url + "?eventDisplay=past", src.discipline, src.gender, "completed");
+    const requireStars = src.division !== "U12";
+    const upcoming = await scrapeEventList(src.url, src.discipline, src.gender, src.division, "upcoming", requireStars);
+    const past = await scrapeEventList(src.url + "?eventDisplay=past", src.discipline, src.gender, src.division, "completed", requireStars);
     const allCandidates = [...upcoming, ...past];
 
     for (const c of allCandidates) {
@@ -148,6 +156,7 @@ export async function fetchIfsaU19_2star_3star(): Promise<any[]> {
         stars: c.stars,
         discipline: c.discipline,
         gender: c.gender,
+        division: c.division,
         status: c.status ?? "upcoming",
         start_date: details.start_date ?? null,
         end_date: details.end_date ?? null,
