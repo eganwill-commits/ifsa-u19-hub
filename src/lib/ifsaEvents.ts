@@ -71,18 +71,18 @@ async function fetchEventDetails(ifsaUrl: string): Promise<{
 
 // Category pages (North America focused, gender-split)
 const CATEGORY_SOURCES = [
-  { division: "U19", discipline: "ski",       gender: "men",   url: "https://ifsafreeride.org/events/category/u19-ski-men/" },
-  { division: "U19", discipline: "ski",       gender: "women", url: "https://ifsafreeride.org/events/category/u19-ski-women/" },
-  { division: "U19", discipline: "snowboard", gender: "men",   url: "https://ifsafreeride.org/events/category/u19-snowboard-men/" },
-  { division: "U19", discipline: "snowboard", gender: "women", url: "https://ifsafreeride.org/events/category/u19-snowboard-women/" },
-  { division: "U15", discipline: "ski",       gender: "men",   url: "https://ifsafreeride.org/events/category/u15-ski-men/" },
-  { division: "U15", discipline: "ski",       gender: "women", url: "https://ifsafreeride.org/events/category/u15-ski-women/" },
-  { division: "U15", discipline: "snowboard", gender: "men",   url: "https://ifsafreeride.org/events/category/u15-snowboard-men/" },
-  { division: "U15", discipline: "snowboard", gender: "women", url: "https://ifsafreeride.org/events/category/u15-snowboard-women/" },
-  { division: "U12", discipline: "ski",       gender: "men",   url: "https://ifsafreeride.org/events/category/u12-ski-boys/" },
-  { division: "U12", discipline: "ski",       gender: "women", url: "https://ifsafreeride.org/events/category/u12-ski-girls/" },
-  { division: "U12", discipline: "snowboard", gender: "men",   url: "https://ifsafreeride.org/events/category/u12-snowboard-boys/" },
-  { division: "U12", discipline: "snowboard", gender: "women", url: "https://ifsafreeride.org/events/category/u12-snowboard-girls/" },
+  { division: "U19", discipline: "ski",       gender: "men" as const,   url: "https://ifsafreeride.org/events/category/u19-ski-men/" },
+  { division: "U19", discipline: "ski",       gender: "women" as const, url: "https://ifsafreeride.org/events/category/u19-ski-women/" },
+  { division: "U19", discipline: "snowboard", gender: "men" as const,   url: "https://ifsafreeride.org/events/category/u19-snowboard-men/" },
+  { division: "U19", discipline: "snowboard", gender: "women" as const, url: "https://ifsafreeride.org/events/category/u19-snowboard-women/" },
+  { division: "U15", discipline: "ski",       gender: "men" as const,   url: "https://ifsafreeride.org/events/category/u15-ski-men/" },
+  { division: "U15", discipline: "ski",       gender: "women" as const, url: "https://ifsafreeride.org/events/category/u15-ski-women/" },
+  { division: "U15", discipline: "snowboard", gender: "men" as const,   url: "https://ifsafreeride.org/events/category/u15-snowboard-men/" },
+  { division: "U15", discipline: "snowboard", gender: "women" as const, url: "https://ifsafreeride.org/events/category/u15-snowboard-women/" },
+  { division: "U12", discipline: "ski",       gender: "men" as const,   url: "https://ifsafreeride.org/events/category/u12-ski-boys/" },
+  { division: "U12", discipline: "ski",       gender: "women" as const, url: "https://ifsafreeride.org/events/category/u12-ski-girls/" },
+  { division: "U12", discipline: "snowboard", gender: "men" as const,   url: "https://ifsafreeride.org/events/category/u12-snowboard-boys/" },
+  { division: "U12", discipline: "snowboard", gender: "women" as const, url: "https://ifsafreeride.org/events/category/u12-snowboard-girls/" },
 ];
 
 // Competition pages (full Americas including South America, gender-combined)
