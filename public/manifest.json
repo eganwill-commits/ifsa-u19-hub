@@ -1,0 +1,18 @@
+{
+  "name": "IFSA Event Hub",
+  "short_name": "IFSA Hub",
+  "description": "Freeride competition events for U12, U15, and U19 athletes",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0e0e0e",
+  "theme_color": "#0e0e0e",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
