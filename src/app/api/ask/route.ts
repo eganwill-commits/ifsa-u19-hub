@@ -108,7 +108,7 @@ ${JSON.stringify(eventResultsData, null, 2)}
     `.trim();
 
     const message = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 1024,
       system: context,
       messages: [{ role: "user", content: question }],
