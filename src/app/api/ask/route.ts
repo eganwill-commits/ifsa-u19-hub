@@ -4,7 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const STOP_WORDS = new Set(['who', 'what', 'where', 'when', 'how', 'the', 'at', 'in', 'for', 'did', 'won', 'win', 'place', 'finish', 'results', 'from', 'and', 'or', 'is', 'are', 'was', 'were', 'show', 'me', 'tell', 'get', 'give', 'find', 'does', 'has', 'have', 'his', 'her', 'their', 'ranking', 'rank', 'points', 'standing', 'division', 'event', 'competition', 'athlete', 'season', 'current', 'about', 'much', 'many', 'some', 'any', 'its', 'this', 'that', 'with', 'not', 'can', 'will', 'just', 'into', 'than', 'then', 'also', 'should', 'could', 'would', 'which', 'there', 'they', 'ifsa', 'junior', 'ski', 'snowboard', 'men', 'women', 'u19', 'u15', 'do', 'my', 'your', 'our', 'its', 'all', 'an', 'a', 'of', 'to', 'up', 'out', 'on', 'by', 'as', 'if', 'be', 'it', 'no', 'so']);
+const STOP_WORDS = new Set(['who', 'what', 'where', 'when', 'how', 'the', 'at', 'in', 'for', 'did', 'won', 'win', 'place', 'finish', 'results', 'from', 'and', 'or', 'is', 'are', 'was', 'were', 'show', 'me', 'tell', 'get', 'give', 'find', 'does', 'has', 'have', 'his', 'her', 'their', 'ranking', 'rank', 'points', 'standing', 'division', 'event', 'competition', 'athlete', 'season', 'current', 'about', 'much', 'many', 'some', 'any', 'its', 'this', 'that', 'with', 'not', 'can', 'will', 'just', 'into', 'than', 'then', 'also', 'should', 'could', 'would', 'which', 'there', 'they', 'ifsa', 'junior', 'ski', 'snowboard', 'men', 'women', 'u19', 'u15', 'u12', 'do', 'my', 'your', 'our', 'its', 'all', 'an', 'a', 'of', 'to', 'up', 'out', 'on', 'by', 'as', 'if', 'be', 'it', 'no', 'so']);
 
 function getCandidateNames(question: string): string[] {
   const words = question.toLowerCase().split(/\s+/).map(w => w.replace(/[^a-z]/g, ''));
@@ -37,7 +37,6 @@ export async function POST(req: Request) {
     let rankingsData: any[] = [];
     let eventResultsData: any[] = [];
 
-    // Try each candidate name until we find a match
     for (const name of candidates) {
       const [{ data: rankings }, { data: results }] = await Promise.all([
         sb.from("rankings_snapshots")
@@ -58,7 +57,6 @@ export async function POST(req: Request) {
       }
     }
 
-    // Search event results by keyword if it looks like an event question
     if (isEventQuestion && eventResultsData.length === 0 && keywords.length > 0) {
       for (const kw of keywords) {
         if (kw.length < 4) continue;
@@ -74,7 +72,6 @@ export async function POST(req: Request) {
       }
     }
 
-    // Fall back to top rankings if nothing found
     if (rankingsData.length === 0 && eventResultsData.length === 0) {
       const { data } = await sb.from("rankings_snapshots")
         .select("athlete_name, division, place, points")
@@ -84,20 +81,31 @@ export async function POST(req: Request) {
     }
 
     const { data: events } = await sb.from("ifsa_events")
-      .select("name, status, start_date, end_date, venue_name, location_text, stars, discipline, gender")
+      .select("name, status, start_date, end_date, venue_name, location_text, stars, discipline, gender, division")
       .order("start_date", { ascending: false })
-      .limit(100);
+      .limit(200);
 
     const context = `
-You are an AI assistant for the IFSA Junior Freeride Hub — a platform tracking U19 and U15 freeride ski and snowboard competitions.
-Answer questions about athletes, events, and rankings using the data below.
-Report findings directly and confidently. Never say results are unavailable if they appear in the data.
-If asked about a specific athlete, report ALL divisions and events they appear in.
-If asked about event results or winners, use EVENT RESULTS data.
-If asked about season rankings or standings, use SEASON RANKINGS data.
-Be concise and direct.
+You are the IFSA Hub AI Assistant — an expert on everything related to IFSA (International Freeskiers & Snowboarders Association) junior freeride competition.
 
-EVENTS (${events?.length ?? 0} total):
+Your knowledge covers:
+- IFSA junior freeride events worldwide (U12, U15, U19) including North America and South America
+- Event schedules, dates, venues, locations, star ratings (2★, 3★), and status
+- Athlete rankings, results, and standings
+- IFSA rules, judging criteria, qualification requirements, and competition formats
+- How athletes qualify for the Junior Freeride Championship
+- Star rating system (1★ through 4★) and what each means
+- Division structure (U12, U15, U19) and age cutoffs
+- Disciplines (ski and snowboard) and gender categories
+- South American season (July–September) and North American season (November–April)
+- IFSA membership, registration, and coach certification
+- General freeride skiing and snowboarding knowledge
+
+Use the database data below for specific events, athletes, and rankings. For questions about rules, history, qualification, judging, or anything not in the database, draw on your broader knowledge of IFSA and freeride competition.
+
+Be conversational, helpful, and direct. If you don't know something specific, say so and point them to ifsafreeride.org.
+
+EVENTS IN DATABASE (${events?.length ?? 0} total):
 ${JSON.stringify(events ?? [], null, 2)}
 
 SEASON RANKINGS (${rankingsData.length} results):
@@ -109,12 +117,25 @@ ${JSON.stringify(eventResultsData, null, 2)}
 
     const message = await client.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 1024,
+      max_tokens: 2048,
       system: context,
       messages: [{ role: "user", content: question }],
+      tools: [
+        {
+          type: "web_search_20250305",
+          name: "web_search",
+        } as any,
+      ],
     });
 
-    const text = message.content.find((b) => b.type === "text")?.text ?? "Sorry, I could not generate a response.";
+    // Extract text from response, handling tool use blocks
+    let text = "";
+    for (const block of message.content) {
+      if (block.type === "text") text += block.text;
+    }
+
+    if (!text) text = "Sorry, I could not generate a response.";
+
     return NextResponse.json({ ok: true, answer: text });
   } catch (err: any) {
     return NextResponse.json({ ok: false, message: err?.message }, { status: 500 });
