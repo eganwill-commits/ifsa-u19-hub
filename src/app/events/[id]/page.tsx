@@ -1,6 +1,9 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import WeatherPanel from "@/components/WeatherPanel";
+import EventLiveHeats from "@/components/EventLiveHeats";
+import AutoRefresh from "@/components/AutoRefresh";
+import { getLiveHeatsEvent, getMatchedLiveHeatsEventId, parseLiveheatsEventId, competitorDivisions } from "@/lib/liveheats";
 
 type EventRow = {
   id: string;
@@ -8,6 +11,7 @@ type EventRow = {
   stars: number | null;
   discipline: string;
   gender: string;
+  division: string | null;
   status: string | null;
   ifsa_url: string;
   liveheats_url: string | null;
@@ -38,8 +42,25 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
   if (!event) return notFound();
   const e = event as EventRow;
 
-  const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "TBD";
+  // Pull entry list + results live from LiveHeats (cached ~60s), narrowed to
+  // this event's division/discipline/gender. If the event has no stored
+  // liveheats_url yet, resolve it on the fly by name so the page still works.
+  const lhId = parseLiveheatsEventId(e.liveheats_url) ?? (await getMatchedLiveHeatsEventId(e.name));
+  const liveheats = lhId ? await getLiveHeatsEvent(lhId) : null;
+  const lhDivisions = liveheats
+    ? competitorDivisions(liveheats.divisions, { division: e.division, discipline: e.discipline, gender: e.gender })
+    : [];
+  const hasLiveData = !!liveheats && lhDivisions.length > 0;
+
+  const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }) : "TBD";
   const st = STATUS_COLORS[e.status?.toLowerCase() ?? ""] ?? STATUS_COLORS.upcoming;
+
+  // "Live" = the event window includes today and it isn't finished/cancelled.
+  const todayYmd = new Date().toISOString().slice(0, 10);
+  const isLive = !!e.start_date
+    && e.status !== "completed" && e.status !== "cancelled"
+    && todayYmd >= e.start_date
+    && todayYmd <= (e.end_date ?? e.start_date);
 
   const daysBetween = e.start_date && e.end_date
     ? Math.round((new Date(e.end_date).getTime() - new Date(e.start_date).getTime()) / 86400000) + 1
@@ -47,6 +68,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
   return (
     <main style={{ maxWidth: 900, margin: "0 auto", padding: "16px 16px 60px", fontFamily: "system-ui", color: "#e8e8e8" }}>
+      {isLive ? <AutoRefresh intervalMs={30000} /> : (e.status !== "completed" && hasLiveData ? <AutoRefresh intervalMs={120000} /> : null)}
       <a href="/events" style={{ color: "#aaa", textDecoration: "none", fontSize: 14, display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 20 }}>
         ← Back to Events
       </a>
@@ -54,6 +76,12 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
       <div style={{ border: "1px solid #2a2a2a", borderRadius: 16, padding: "20px 20px", marginBottom: 16, background: "rgba(10,10,10,0.8)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {isLive && (
+              <span style={{ fontSize: 11, fontWeight: 800, padding: "3px 10px", borderRadius: 999, background: "#2a0d0d", border: "1px solid #e05555", color: "#ff6b6b", fontFamily: "monospace", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <span style={{ width: 7, height: 7, borderRadius: 999, background: "#ff3b3b", display: "inline-block" }} />
+                LIVE
+              </span>
+            )}
             <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: st.bg, border: `1px solid ${st.border}`, color: st.color, fontFamily: "monospace" }}>
               {e.status?.toUpperCase() ?? "UPCOMING"}
             </span>
@@ -84,7 +112,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
         <h1 style={{ fontSize: "clamp(18px, 5vw, 26px)", fontWeight: 800, margin: "0 0 12px" }}>{e.name}</h1>
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {[e.discipline, e.gender, "U19"].map(tag => (
+          {[e.discipline, e.gender, e.division ?? "U19"].map(tag => (
             <span key={tag} style={{ fontSize: 11, padding: "3px 10px", borderRadius: 999, border: "1px solid #2a2a2a", color: "#aaa", fontFamily: "monospace", textTransform: "uppercase" }}>
               {tag}
             </span>
@@ -117,24 +145,28 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
         </div>
       )}
 
-      <div style={{ border: "1px solid #2a2a2a", borderRadius: 16, overflow: "hidden", background: "rgba(10,10,10,0.8)" }}>
-        <div style={{ padding: "16px 20px", borderBottom: "1px solid #2a2a2a" }}>
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Results and Scoring</h2>
-        </div>
-        {e.liveheats_url ? (
-          <iframe
-            src={e.liveheats_url}
-            style={{ width: "100%", height: "clamp(400px, 80vw, 700px)", border: "none", background: "#fff", display: "block" }}
-            title="LiveHeats Results"
-          />
-        ) : (
-          <div style={{ padding: "32px 20px", textAlign: "center" }}>
-            <span style={{ fontSize: 12, color: "#555", border: "1px solid #2a2a2a", borderRadius: 8, padding: "6px 14px" }}>
-              Results Coming Soon
-            </span>
+      {hasLiveData ? (
+        <EventLiveHeats data={{ ...liveheats!, divisions: lhDivisions }} />
+      ) : (
+        <div style={{ border: "1px solid #2a2a2a", borderRadius: 16, overflow: "hidden", background: "rgba(10,10,10,0.8)" }}>
+          <div style={{ padding: "16px 20px", borderBottom: "1px solid #2a2a2a" }}>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Results and Scoring</h2>
           </div>
-        )}
-      </div>
+          {e.liveheats_url ? (
+            <iframe
+              src={e.liveheats_url}
+              style={{ width: "100%", height: "clamp(400px, 80vw, 700px)", border: "none", background: "#fff", display: "block" }}
+              title="LiveHeats Results"
+            />
+          ) : (
+            <div style={{ padding: "32px 20px", textAlign: "center" }}>
+              <span style={{ fontSize: 12, color: "#555", border: "1px solid #2a2a2a", borderRadius: 8, padding: "6px 14px" }}>
+                Results Coming Soon
+              </span>
+            </div>
+          )}
+        </div>
+      )}
     </main>
   );
 }

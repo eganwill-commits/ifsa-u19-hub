@@ -48,12 +48,22 @@ export default function EventsPage() {
   const [filters, setFilters] = useState<Filters>({ discipline: "all", division: "all", stars: "all", status: "all", search: "" });
 
   useEffect(() => {
-    (async () => {
-      const { data } = await supabase.from("ifsa_events").select("*").order("start_date", { ascending: true }).limit(500);
+    let active = true;
+    const load = async () => {
+      const { data } = await supabase.from("ifsa_events").select("*").eq("hidden", false).order("start_date", { ascending: true }).limit(500);
+      if (!active) return;
       setEvents((data || []) as EventRow[]);
       setLoading(false);
-    })();
+    };
+    load();
+    const id = setInterval(load, 60000); // keep the list fresh automatically
+    return () => { active = false; clearInterval(id); };
   }, [supabase]);
+
+  const todayYmd = new Date().toISOString().slice(0, 10);
+  const isLiveEvent = (e: EventRow) =>
+    !!e.start_date && e.status !== "completed" && e.status !== "cancelled"
+    && todayYmd >= e.start_date && todayYmd <= (e.end_date ?? e.start_date);
 
   const filtered = events.filter((e) => {
     if (filters.discipline !== "all" && e.discipline !== filters.discipline) return false;
@@ -65,7 +75,7 @@ export default function EventsPage() {
   });
 
   const setFilter = (key: keyof Filters, value: string) => setFilters((f) => ({ ...f, [key]: value }));
-  const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "TBD";
+  const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }) : "TBD";
 
   const upcomingCount = events.filter(e => (e.status ?? "upcoming") === "upcoming").length;
   const completedCount = events.filter(e => e.status === "completed").length;
@@ -148,6 +158,12 @@ export default function EventsPage() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5, flexWrap: "wrap" }}>
+                      {isLiveEvent(e) && (
+                        <span style={{ fontSize: 11, fontWeight: 800, padding: "2px 8px", borderRadius: 999, background: "#2a0d0d", border: "1px solid #e05555", color: "#ff6b6b", fontFamily: "monospace", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 5 }}>
+                          <span style={{ width: 6, height: 6, borderRadius: 999, background: "#ff3b3b", display: "inline-block" }} />
+                          LIVE
+                        </span>
+                      )}
                       <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: st.bg, border: `1px solid ${st.border}`, color: st.color, fontFamily: "monospace", whiteSpace: "nowrap" }}>
                         {e.status?.toUpperCase() ?? "UPCOMING"}
                       </span>

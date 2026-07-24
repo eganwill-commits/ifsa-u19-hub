@@ -82,6 +82,7 @@ export async function POST(req: Request) {
 
     const { data: events } = await sb.from("ifsa_events")
       .select("name, status, start_date, end_date, venue_name, location_text, stars, discipline, gender, division")
+      .eq("hidden", false)
       .order("start_date", { ascending: false })
       .limit(200);
 

@@ -110,7 +110,7 @@ export default function AdminPage() {
     <main style={{ maxWidth: 900, margin: "40px auto", padding: "0 16px 60px", fontFamily: "system-ui", color: "#e8e8e8" }}>
       <h1 style={{ marginBottom: 4 }}>Admin - LiveHeats URLs</h1>
       <p style={{ color: "#666", fontSize: 14, marginBottom: 32 }}>
-        Paste LiveHeats event URLs for each event. They will appear as embedded results on the event detail page.
+        Paste a LiveHeats event URL for each event. It powers the entry lists and results tables shown natively on that event&apos;s detail page. Most events are matched automatically — use this to fix or add a link.
       </p>
 
       <h2 style={{ fontSize: 16, color: "#6fcf6f", marginBottom: 12 }}>Completed Events ({completed.length})</h2>

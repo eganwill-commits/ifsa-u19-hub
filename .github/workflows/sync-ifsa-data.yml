@@ -1,0 +1,46 @@
+name: Sync IFSA data
+
+# Keeps the hub's data fresh: scrapes events, matches LiveHeats, updates
+# statuses, then pulls results, rankings and athletes into Supabase.
+# Runs hourly and can also be triggered manually from the Actions tab.
+
+on:
+  schedule:
+    - cron: '17 * * * *' # hourly (at :17, to avoid GitHub's on-the-hour congestion)
+  workflow_dispatch: {}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      APP_URL: ${{ secrets.APP_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+
+      # 1) Refresh the event list from IFSA (Vercel route)
+      - name: Sync events
+        run: curl -fsS -m 300 -X POST "$APP_URL/api/sync-events" && echo "" || echo "sync-events failed (continuing)"
+
+      # 2) Match any unlinked events to LiveHeats
+      - name: Match LiveHeats links
+        run: curl -fsS -m 300 -X POST "$APP_URL/api/match-liveheats" && echo "" || echo "match-liveheats failed (continuing)"
+
+      # 3) Mark past events completed
+      - name: Update statuses
+        run: curl -fsS -m 120 -X POST "$APP_URL/api/update-statuses" && echo "" || echo "update-statuses failed (continuing)"
+
+      # 4) Pull results / rankings / athletes straight into Supabase (no Vercel timeout)
+      - name: Scrape event results
+        run: node scripts/scrape-event-results.js
+
+      - name: Scrape rankings
+        run: node scripts/scrape-rankings.js
+
+      - name: Scrape athletes
+        run: node scripts/scrape-athletes.js

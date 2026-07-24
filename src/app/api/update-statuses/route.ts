@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabaseServer";
 
+// Vercel Cron sends GET; allow both so the scheduled run actually fires.
+export async function GET() {
+  return POST();
+}
+
 export async function POST() {
   try {
     const sb = supabaseServer();

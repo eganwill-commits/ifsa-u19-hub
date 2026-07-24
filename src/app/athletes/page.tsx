@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
 
 type Athlete = {
@@ -63,10 +64,16 @@ export default function AthletesPage() {
       {!loading && results.length > 0 && (
         <div style={{ display: 'grid', gap: 8 }}>
           {results.map(a => (
-            <div key={a.id}
-              style={{ border: '1px solid #1e1e1e', borderRadius: 12, padding: '12px 16px', background: 'rgba(10,10,10,0.8)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontWeight: 600, fontSize: 15, color: '#e8e8e8' }}>{a.name}</span>
-            </div>
+            <Link key={a.id} href={`/athletes/${a.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+              <div
+                style={{ border: '1px solid #1e1e1e', borderRadius: 12, padding: '12px 16px', background: 'rgba(10,10,10,0.8)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'background 0.1s' }}
+                onMouseEnter={(ev) => { (ev.currentTarget as HTMLDivElement).style.background = '#161616'; }}
+                onMouseLeave={(ev) => { (ev.currentTarget as HTMLDivElement).style.background = 'rgba(10,10,10,0.8)'; }}
+              >
+                <span style={{ fontWeight: 600, fontSize: 15, color: '#e8e8e8' }}>{a.name}</span>
+                <span style={{ color: '#555', fontSize: 18, lineHeight: 1 }}>›</span>
+              </div>
+            </Link>
           ))}
         </div>
       )}
