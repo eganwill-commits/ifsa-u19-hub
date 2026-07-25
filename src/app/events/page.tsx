@@ -77,8 +77,30 @@ export default function EventsPage() {
   const setFilter = (key: keyof Filters, value: string) => setFilters((f) => ({ ...f, [key]: value }));
   const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }) : "TBD";
 
-  const upcomingCount = events.filter(e => (e.status ?? "upcoming") === "upcoming").length;
-  const completedCount = events.filter(e => e.status === "completed").length;
+  // Collapse the per-division rows into one card per competition (rows sharing an ifsa_url).
+  const DIV_ORDER: Record<string, number> = { U12: 0, U15: 1, U19: 2 };
+  const groupComps = (rows: EventRow[]) => {
+    const m = new Map<string, EventRow[]>();
+    for (const e of rows) {
+      const k = e.ifsa_url || e.name;
+      if (!m.has(k)) m.set(k, []);
+      m.get(k)!.push(e);
+    }
+    return m;
+  };
+  const repOf = (rows: EventRow[]) =>
+    [...rows].sort((a, b) => (DIV_ORDER[b.division ?? "U19"] ?? 0) - (DIV_ORDER[a.division ?? "U19"] ?? 0))[0];
+
+  const competitions = [...groupComps(filtered).values()].map((rows) => ({
+    rep: repOf(rows),
+    divisions: [...new Set(rows.map((r) => r.division ?? "U19"))].sort((a, b) => (DIV_ORDER[a] ?? 9) - (DIV_ORDER[b] ?? 9)),
+    live: rows.some(isLiveEvent),
+  }));
+
+  const allComps = [...groupComps(events).values()];
+  const totalComps = allComps.length;
+  const upcomingCount = allComps.filter((rows) => (repOf(rows).status ?? "upcoming") === "upcoming").length;
+  const completedCount = allComps.filter((rows) => repOf(rows).status === "completed").length;
 
   const FilterBtn = ({ label, filterKey, value }: { label: string; filterKey: keyof Filters; value: string }) => {
     const active = filters[filterKey] === value;
@@ -137,20 +159,18 @@ export default function EventsPage() {
       </div>
 
       <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
-        <span style={{ color: "#aaa", fontSize: 13 }}>Showing {filtered.length} of {events.length} events</span>
+        <span style={{ color: "#aaa", fontSize: 13 }}>Showing {competitions.length} of {totalComps} events</span>
         <span style={{ fontSize: 12, color: "#4a9edd", border: "1px solid #1a2a3a", borderRadius: 999, padding: "2px 10px" }}>{upcomingCount} upcoming</span>
         <span style={{ fontSize: 12, color: "#4caf50", border: "1px solid #1a3a1a", borderRadius: 999, padding: "2px 10px" }}>{completedCount} completed</span>
       </div>
 
-      {filtered.length === 0 && <div style={{ color: "#aaa", fontSize: 14, fontStyle: "italic" }}>No events match your filters.</div>}
+      {competitions.length === 0 && <div style={{ color: "#aaa", fontSize: 14, fontStyle: "italic" }}>No events match your filters.</div>}
 
       <div style={{ display: "grid", gap: 8 }}>
-        {filtered.map((e) => {
+        {competitions.map(({ rep: e, divisions, live }) => {
           const st = getStatus(e.status);
-          const div = e.division ?? "U19";
-          const divColor = DIVISION_COLORS[div] ?? "#aaa";
           return (
-            <Link key={e.id} href={`/events/${e.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+            <Link key={e.ifsa_url || e.id} href={`/events/${e.id}`} style={{ textDecoration: "none", color: "inherit" }}>
               <div style={{ border: "1px solid #1e1e1e", borderLeft: `3px solid ${st.bar}`, borderRadius: 12, padding: "12px 14px", background: "rgba(10,10,10,0.7)", transition: "background 0.1s" }}
                 onMouseEnter={(ev) => { const s = e.status?.toLowerCase(); (ev.currentTarget as HTMLDivElement).style.background = s === "completed" ? "#0d6b0d" : s === "upcoming" ? "#0d3d78" : "#141414"; }}
                 onMouseLeave={(ev) => { (ev.currentTarget as HTMLDivElement).style.background = "rgba(10,10,10,0.7)"; }}
@@ -158,7 +178,7 @@ export default function EventsPage() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5, flexWrap: "wrap" }}>
-                      {isLiveEvent(e) && (
+                      {live && (
                         <span style={{ fontSize: 11, fontWeight: 800, padding: "2px 8px", borderRadius: 999, background: "#2a0d0d", border: "1px solid #e05555", color: "#ff6b6b", fontFamily: "monospace", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 5 }}>
                           <span style={{ width: 6, height: 6, borderRadius: 999, background: "#ff3b3b", display: "inline-block" }} />
                           LIVE
@@ -167,9 +187,11 @@ export default function EventsPage() {
                       <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: st.bg, border: `1px solid ${st.border}`, color: st.color, fontFamily: "monospace", whiteSpace: "nowrap" }}>
                         {e.status?.toUpperCase() ?? "UPCOMING"}
                       </span>
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: "rgba(0,0,0,0.4)", border: `1px solid ${divColor}`, color: divColor, fontFamily: "monospace" }}>
-                        {div}
-                      </span>
+                      {divisions.map((d) => (
+                        <span key={d} style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: "rgba(0,0,0,0.4)", border: `1px solid ${DIVISION_COLORS[d] ?? "#aaa"}`, color: DIVISION_COLORS[d] ?? "#aaa", fontFamily: "monospace" }}>
+                          {d}
+                        </span>
+                      ))}
                       {e.stars && <span style={{ fontSize: 11, color: "#ffcc00", fontWeight: 700 }}>{e.stars}★</span>}
                     </div>
                     <div style={{ fontWeight: 700, fontSize: "clamp(13px, 3vw, 15px)", lineHeight: 1.3, marginBottom: 3 }}>{e.name}</div>
