@@ -9,6 +9,8 @@
  * This step turns that silence into a red X.
  */
 
+require('dotenv').config({ path: '.env.local' });
+
 const SUPABASE_URL =
   process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
