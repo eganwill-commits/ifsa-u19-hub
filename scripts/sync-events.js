@@ -78,14 +78,34 @@ function inferGender(text) {
   return (t.includes('women') || t.includes('girl') || t.includes('femenino') || t.includes('female')) ? 'women' : 'men';
 }
 
-async function getHtml(url) {
-  const res = await fetch(url, { headers: HEADERS, cache: 'no-store' });
-  if (!res.ok) return null;
-  return res.text();
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * The previous version returned null on any non-200 and callers turned that into
+ * an empty list. That is how the U12 categories -- which are fetched last, after
+ * ~16 other requests -- silently contributed nothing: ifsafreeride.org throttles
+ * and a 429 looked exactly like "no events". Retry with backoff, then be loud.
+ */
+async function getHtml(url, { tries = 3, required = true } = {}) {
+  let lastStatus = null;
+  for (let attempt = 1; attempt <= tries; attempt++) {
+    try {
+      const res = await fetch(url, { headers: HEADERS, cache: 'no-store' });
+      if (res.ok) return res.text();
+      lastStatus = res.status;
+      if (res.status === 404) return null; // genuinely absent, e.g. past the last page
+    } catch (err) {
+      lastStatus = err.message;
+    }
+    if (attempt < tries) await sleep(attempt * 1500);
+  }
+  if (required) throw new Error('Failed to fetch ' + url + ' after ' + tries + ' tries (last: ' + lastStatus + ')');
+  console.warn('  WARN could not fetch ' + url + ' (last: ' + lastStatus + ')');
+  return null;
 }
 
-async function scrapeList(url, division, discipline, defaultGender, defaultStatus) {
-  const html = await getHtml(url);
+async function scrapeList(url, division, discipline, defaultGender, defaultStatus, opts) {
+  const html = await getHtml(url, opts);
   if (!html) return [];
   const $ = cheerio.load(html);
   const out = [];
@@ -119,6 +139,30 @@ async function scrapeList(url, division, discipline, defaultGender, defaultStatu
   });
 
   return out;
+}
+
+const MAX_PAGES = 12;
+
+/**
+ * Category pages are paginated at 50 events. Reading only page 1 is why the first
+ * run stopped at late February -- March and April were on page 2.
+ */
+async function scrapeListPaged(baseUrl, division, discipline, defaultGender, defaultStatus, pastView) {
+  const all = [];
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    const url = page === 1
+      ? baseUrl + (pastView ? '?eventDisplay=past' : '')
+      : baseUrl + 'page/' + page + '/' + (pastView ? '?eventDisplay=past' : '');
+
+    // Page 1 must work. Later pages may legitimately not exist.
+    const rows = await scrapeList(url, division, discipline, defaultGender, defaultStatus, {
+      required: page === 1 && !pastView,
+    });
+    if (!rows.length) break;
+    all.push(...rows);
+    await sleep(400); // be a good citizen; this is what tripped the throttle before
+  }
+  return all;
 }
 
 async function fetchEventDetails(url) {
@@ -200,22 +244,26 @@ async function main() {
   const map = new Map();
 
   for (const src of CATEGORY_SOURCES) {
-    const [upcoming, past] = await Promise.all([
-      scrapeList(src.url, src.division, src.discipline, src.gender, 'upcoming'),
-      scrapeList(src.url + '?eventDisplay=past', src.division, src.discipline, src.gender, 'completed'),
-    ]);
+    const upcoming = await scrapeListPaged(src.url, src.division, src.discipline, src.gender, 'upcoming', false);
+    const past = await scrapeListPaged(src.url, src.division, src.discipline, src.gender, 'completed', true);
+    let added = 0;
     for (const c of upcoming.concat(past)) {
       const key = c.href + '|' + c.division;
-      if (!map.has(key)) map.set(key, c);
+      if (!map.has(key)) { map.set(key, c); added++; }
     }
+    console.log('  ' + src.division + ' ' + src.discipline + ' ' + src.gender +
+                ': ' + (upcoming.length + past.length) + ' listed, ' + added + ' new');
   }
 
   for (const src of COMPETITION_SOURCES) {
-    const events = await scrapeList(src.url, src.division, src.discipline, undefined, 'upcoming');
+    const events = await scrapeListPaged(src.url, src.division, src.discipline, undefined, 'upcoming', false);
+    let added = 0;
     for (const c of events) {
       const key = c.href + '|' + c.division;
-      if (!map.has(key)) map.set(key, c);
+      if (!map.has(key)) { map.set(key, c); added++; }
     }
+    console.log('  competition ' + src.division + ' ' + src.discipline +
+                ': ' + events.length + ' listed, ' + added + ' new');
   }
 
   const scraped = [...map.values()];
