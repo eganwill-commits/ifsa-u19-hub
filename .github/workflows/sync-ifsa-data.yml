@@ -2,11 +2,14 @@ name: Sync IFSA data
 
 # Keeps the hub's data fresh: scrapes events, matches LiveHeats, updates
 # statuses, then pulls results, rankings and athletes into Supabase.
-# Runs hourly and can also be triggered manually from the Actions tab.
+# Runs daily off-season (hourly in season) and can be triggered manually from the Actions tab.
 
 on:
   schedule:
-    - cron: '17 * * * *' # hourly (at :17, to avoid GitHub's on-the-hour congestion)
+    # Off-season: daily is plenty -- there is nothing to refresh between seasons.
+    # IN SEASON (from late December) switch back to '17 * * * *' for hourly updates
+    # during competition weekends.
+    - cron: '17 12 * * *' # daily at 12:17 UTC
   workflow_dispatch: {}
 
 jobs:
@@ -44,3 +47,9 @@ jobs:
 
       - name: Scrape athletes
         run: node scripts/scrape-athletes.js
+
+      # 5) Fail loudly if anything above silently stopped updating.
+      #    Every step above tolerates failure, so without this a broken step
+      #    is invisible. See scripts/check-freshness.js.
+      - name: Check data freshness
+        run: node scripts/check-freshness.js
