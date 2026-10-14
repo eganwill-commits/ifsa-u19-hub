@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import FollowButton from "@/components/FollowButton";
 
 type ResultRow = {
   event_name: string | null;
@@ -66,12 +67,15 @@ export default async function AthleteProfilePage({ params }: { params: Promise<{
           <h1 style={{ fontSize: "clamp(20px, 5vw, 28px)", fontWeight: 800, margin: 0 }}>
             {displayName ?? "Athlete"}
           </h1>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <FollowButton athleteId={id} athleteName={displayName ?? "Athlete"} />
           {athlete?.liveheats_url && (
             <a href={athlete.liveheats_url} target="_blank" rel="noreferrer"
               style={{ fontSize: 13, color: "#aaa", border: "1px solid #333", borderRadius: 8, padding: "6px 14px", textDecoration: "none" }}>
               LiveHeats Profile ↗
             </a>
           )}
+          </div>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 10, marginTop: 16 }}>
