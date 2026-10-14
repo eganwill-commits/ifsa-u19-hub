@@ -1,137 +1,183 @@
+#!/usr/bin/env node
+/**
+ * Pull IFSA junior season rankings from LiveHeats into Supabase.
+ *
+ * Two things this fixes vs the original version:
+ *
+ * 1. SERIES DISCOVERY. The old script hardcoded SERIES_ID = 53121, which is the
+ *    *2025-2026* series. LiveHeats mints a new series each season (2027 is 70778)
+ *    but REUSES the division ids, so the scrape kept succeeding while silently
+ *    serving last season's standings as current. We now look the series up by name
+ *    every run. Override with RANKINGS_SERIES_ID if IFSA renames things.
+ *
+ * 2. HISTORY. The old script DELETEd every row then reinserted, so the table only
+ *    ever held one day and no movement/trend was possible. We now write one dated
+ *    snapshot per day and keep them, so place_change works from the first day this
+ *    runs. Re-running the same day is idempotent (unique index on
+ *    snapshot_date, series_id, athlete_id, division).
+ *
+ * Note: IFSA does not rank U12 in any series -- U12 competes but has no season
+ * standings. That is upstream, not a gap here.
+ */
+
 require('dotenv').config({ path: '.env.local' });
-const https = require('https');
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+const SERIES_OVERRIDE = process.env.RANKINGS_SERIES_ID || null;
+const ORG_SHORT_NAME = process.env.IFSA_ORG_SHORT_NAME || 'IFSA';
 
-const SERIES_ID = 53121;
-const DIVISIONS = [
-  { id: 77447, name: 'U19 Ski Men', discipline: 'ski', gender: 'men' },
-  { id: 77446, name: 'U19 Ski Women', discipline: 'ski', gender: 'women' },
-  { id: 77454, name: 'U19 Snowboard Men', discipline: 'snowboard', gender: 'men' },
-  { id: 77453, name: 'U19 Snowboard Women', discipline: 'snowboard', gender: 'women' },
-  { id: 77445, name: 'U15 Ski Men', discipline: 'ski', gender: 'men' },
-  { id: 77451, name: 'U15 Ski Women', discipline: 'ski', gender: 'women' },
-  { id: 77449, name: 'U15 Snowboard Men', discipline: 'snowboard', gender: 'men' },
-  { id: 77452, name: 'U15 Snowboard Women', discipline: 'snowboard', gender: 'women' },
-];
-
-function graphql(query) {
-  return new Promise(function(resolve, reject) {
-    const body = JSON.stringify({ query: query });
-    const options = {
-      hostname: 'liveheats.com',
-      path: '/api/graphql',
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
-    };
-    const req = https.request(options, function(res) {
-      let data = '';
-      res.on('data', function(chunk) { data += chunk; });
-      res.on('end', function() { resolve(JSON.parse(data)); });
-    });
-    req.on('error', reject);
-    req.write(body);
-    req.end();
-  });
+if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+  console.error('Missing NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_KEY');
+  process.exit(1);
 }
 
-function supabaseDelete(path) {
-  return new Promise(function(resolve, reject) {
-    const url = new URL(SUPABASE_URL + path);
-    const options = {
-      hostname: url.hostname,
-      path: url.pathname + url.search,
-      method: 'DELETE',
-      headers: {
-        'apikey': SUPABASE_SERVICE_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
-        'Content-Type': 'application/json'
-      }
-    };
-    const req = https.request(options, function(res) {
-      let data = '';
-      res.on('data', function(chunk) { data += chunk; });
-      res.on('end', function() { resolve(data); });
-    });
-    req.on('error', reject);
-    req.end();
+const TABLE = '/rest/v1/rankings_snapshots';
+const sbHeaders = {
+  apikey: SUPABASE_SERVICE_KEY,
+  Authorization: 'Bearer ' + SUPABASE_SERVICE_KEY,
+  'Content-Type': 'application/json',
+};
+
+async function gql(query) {
+  const res = await fetch('https://liveheats.com/api/graphql', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query }),
   });
+  if (!res.ok) throw new Error('LiveHeats HTTP ' + res.status);
+  const json = await res.json();
+  if (json.errors) throw new Error('LiveHeats GraphQL: ' + JSON.stringify(json.errors));
+  return json.data;
 }
 
-function supabaseInsert(rows) {
-  return new Promise(function(resolve, reject) {
-    const url = new URL(SUPABASE_URL + '/rest/v1/rankings_snapshots');
-    const bodyStr = JSON.stringify(rows);
-    const options = {
-      hostname: url.hostname,
-      path: url.pathname,
-      method: 'POST',
-      headers: {
-        'apikey': SUPABASE_SERVICE_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(bodyStr),
-        'Prefer': 'resolution=merge-duplicates'
-      }
-    };
-    const req = https.request(options, function(res) {
-      let data = '';
-      res.on('data', function(chunk) { data += chunk; });
-      res.on('end', function() { resolve(data); });
-    });
-    req.on('error', reject);
-    req.write(bodyStr);
-    req.end();
+/** Leading 4-digit year in a series name, e.g. "2027 Junior Ranking" -> 2027. */
+function seasonYear(name) {
+  const m = String(name).match(/(\d{4})/g);
+  if (!m) return 0;
+  return Math.max.apply(null, m.map(Number));
+}
+
+async function findCurrentSeries() {
+  if (SERIES_OVERRIDE) {
+    const d = await gql('query { series(id: ' + SERIES_OVERRIDE + ') { id name } }');
+    if (!d.series) throw new Error('RANKINGS_SERIES_ID ' + SERIES_OVERRIDE + ' not found');
+    return d.series;
+  }
+
+  const data = await gql(
+    'query { organisationByShortName(shortName: "' + ORG_SHORT_NAME + '") { id name series { id name } } }'
+  );
+  const org = data.organisationByShortName;
+  if (!org) throw new Error('Organisation "' + ORG_SHORT_NAME + '" not found');
+
+  // The junior season ranking, not dues / membership / portal / regional variants.
+  const candidates = org.series.filter(function (s) {
+    const n = s.name.toLowerCase();
+    return n.includes('junior') && n.includes('ranking')
+      && !n.includes('dues') && !n.includes('membership')
+      && !n.includes('portal') && !n.includes('sudamerica');
   });
+
+  if (!candidates.length) {
+    throw new Error('No junior ranking series found. Series seen: ' +
+      org.series.map(function (s) { return s.id + ':' + s.name; }).join(' | '));
+  }
+
+  candidates.sort(function (a, b) {
+    const dy = seasonYear(b.name) - seasonYear(a.name);
+    return dy !== 0 ? dy : Number(b.id) - Number(a.id);
+  });
+  return candidates[0];
+}
+
+function parseDivision(name) {
+  const n = name.toLowerCase();
+  return {
+    discipline: n.includes('snowboard') ? 'snowboard' : 'ski',
+    gender: (n.includes('women') || n.includes('girls')) ? 'women' : 'men',
+  };
+}
+
+async function sb(path, method, body, extraHeaders) {
+  const res = await fetch(SUPABASE_URL + path, {
+    method: method,
+    headers: Object.assign({}, sbHeaders, extraHeaders || {}),
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(method + ' ' + path + ' -> HTTP ' + res.status + ' ' + text.slice(0, 400));
+  return text;
 }
 
 async function main() {
-  const allRankings = [];
+  const series = await findCurrentSeries();
+  console.log('Current series: ' + series.id + ' "' + series.name + '"');
 
-  for (let d = 0; d < DIVISIONS.length; d++) {
-    const div = DIVISIONS[d];
-    console.log('Fetching ' + div.name + '...');
+  const divData = await gql('query { series(id: ' + series.id + ') { divisions { id name } } }');
+  const divisions = (divData.series && divData.series.divisions) || [];
+  if (!divisions.length) throw new Error('Series ' + series.id + ' has no divisions');
+  console.log('Divisions: ' + divisions.map(function (d) { return d.name; }).join(', '));
+
+  const snapshotDate = new Date().toISOString().slice(0, 10);
+  const rows = [];
+
+  for (const div of divisions) {
+    process.stdout.write('  ' + div.name + ' ... ');
     try {
-      const result = await graphql('query { series(id: ' + SERIES_ID + ') { rankings(divisionId: ' + div.id + ') { place points athlete { id name } } } }');
-      const rankings = result && result.data && result.data.series && result.data.series.rankings ? result.data.series.rankings : [];
-      console.log('  Found ' + rankings.length + ' athletes');
+      const d = await gql(
+        'query { series(id: ' + series.id + ') { rankings(divisionId: ' + div.id + ') { place points athlete { id name } } } }'
+      );
+      const rankings = (d.series && d.series.rankings) || [];
+      const meta = parseDivision(div.name);
 
-      for (let i = 0; i < rankings.length; i++) {
-        const r = rankings[i];
+      for (const r of rankings) {
         if (!r.athlete || !r.athlete.id) continue;
-        allRankings.push({
+        rows.push({
           athlete_id: String(r.athlete.id),
           athlete_name: r.athlete.name,
           division: div.name,
+          discipline: meta.discipline,
+          gender: meta.gender,
           place: r.place,
           points: r.points || null,
-          discipline: div.discipline,
-          gender: div.gender,
-          event_id: null,
-          event_name: null,
-          event_date: null,
-          stars: null,
-          score: null,
-          updated_at: new Date().toISOString()
+          series_id: String(series.id),
+          series_name: series.name,
+          snapshot_date: snapshotDate,
+          is_current: true,
+          updated_at: new Date().toISOString(),
         });
       }
-      await new Promise(function(r) { setTimeout(r, 300); });
-    } catch(e) {
-      console.log('  Error: ' + e.message);
+      console.log(rankings.length + ' athletes');
+    } catch (err) {
+      console.log('ERROR ' + err.message);
+      throw err; // a partial ranking snapshot is worse than none
     }
+    await new Promise(function (r) { setTimeout(r, 300); });
   }
 
-  console.log('\nTotal: ' + allRankings.length + ' rankings, clearing old data...');
-  await supabaseDelete('/rest/v1/rankings_snapshots?id=not.is.null');
-
-  for (let i = 0; i < allRankings.length; i += 50) {
-    const batch = allRankings.slice(i, i + 50);
-    await supabaseInsert(batch);
-    process.stdout.write('Saved ' + Math.min(i + 50, allRankings.length) + '/' + allRankings.length + '\r');
+  if (rows.length < 50) {
+    throw new Error('Only ' + rows.length + ' ranking rows returned; refusing to write a suspect snapshot');
   }
 
-  console.log('\nDone!');
+  console.log('\nWriting ' + rows.length + ' rows for ' + snapshotDate + ' ...');
+
+  // Any other series is no longer current (e.g. last season's rows).
+  await sb(TABLE + '?series_id=neq.' + encodeURIComponent(series.id), 'PATCH', { is_current: false });
+
+  const onConflict = 'snapshot_date,series_id,athlete_id,division';
+  for (let i = 0; i < rows.length; i += 200) {
+    const batch = rows.slice(i, i + 200);
+    await sb(TABLE + '?on_conflict=' + onConflict, 'POST', batch, {
+      Prefer: 'resolution=merge-duplicates,return=minimal',
+    });
+    process.stdout.write('  saved ' + Math.min(i + 200, rows.length) + '/' + rows.length + '\r');
+  }
+
+  console.log('\nDone. Season: ' + series.name);
 }
 
-main();
+main().catch(function (err) {
+  console.error('\nscrape-rankings failed: ' + err.message);
+  process.exit(1);
+});
