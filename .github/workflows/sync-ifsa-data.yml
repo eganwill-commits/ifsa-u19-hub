@@ -26,9 +26,13 @@ jobs:
           node-version: '22'
       - run: npm ci
 
-      # 1) Refresh the event list from IFSA (Vercel route)
+      # 1) Refresh the event list from IFSA.
+      #    Was a curl to the Vercel route; that route could not finish inside the
+      #    serverless limit once a new season landed, so this now runs as a plain
+      #    Node script with no timeout. Still failure-tolerant, but the freshness
+      #    check at the end turns a failure here into a red X instead of silence.
       - name: Sync events
-        run: curl -fsS -m 300 -X POST "$APP_URL/api/sync-events" && echo "" || echo "sync-events failed (continuing)"
+        run: node scripts/sync-events.js || echo "sync-events failed (continuing)"
 
       # 2) Match any unlinked events to LiveHeats
       - name: Match LiveHeats links
