@@ -203,6 +203,41 @@ async function fetchEventDetails(url) {
   };
 }
 
+
+/**
+ * IFSA's own event pages carry date typos -- the 2027 Winter Park page reads
+ * "March 7, 2100 - March 7, 2100". Stored as-is, those events sit in "upcoming"
+ * forever and wreck any date sort.
+ *
+ * When a parsed year is implausible, fall back to the season year in the event
+ * name. IFSA names a season by the year it ENDS in, so a "2027 ..." event in
+ * Jan-Jun is 2027 and one in Jul-Dec (the South American swing) is 2026.
+ * If it still cannot be made sensible, store null rather than a wrong date.
+ */
+function sanitizeDate(ymd, eventName) {
+  if (!ymd) return null;
+  const thisYear = new Date().getFullYear();
+  const year = Number(ymd.slice(0, 4));
+  if (!Number.isFinite(year)) return null;
+  if (year >= thisYear - 5 && year <= thisYear + 2) return ymd;
+
+  const m = /(20\d{2})/.exec(eventName || '');
+  if (!m) {
+    console.warn('  WARN implausible date ' + ymd + ' on "' + eventName + '" and no year in name; storing null');
+    return null;
+  }
+  const seasonYear = Number(m[1]);
+  const month = Number(ymd.slice(5, 7));
+  const corrected = month >= 7 ? seasonYear - 1 : seasonYear;
+  if (corrected < thisYear - 5 || corrected > thisYear + 2) {
+    console.warn('  WARN cannot repair date ' + ymd + ' on "' + eventName + '"; storing null');
+    return null;
+  }
+  const fixed = String(corrected) + ymd.slice(4);
+  console.warn('  FIXED upstream date typo on "' + eventName + '": ' + ymd + ' -> ' + fixed);
+  return fixed;
+}
+
 async function mapLimit(items, limit, fn) {
   const results = new Array(items.length);
   let next = 0;
@@ -314,8 +349,8 @@ async function main() {
     const prev = existing.get(key) || {};
     const d = detailByKey.get(key) || {};
 
-    const start_date = d.start_date ?? prev.start_date ?? null;
-    const end_date = d.end_date ?? prev.end_date ?? null;
+    const start_date = sanitizeDate(d.start_date ?? prev.start_date ?? null, c.name);
+    const end_date = sanitizeDate(d.end_date ?? prev.end_date ?? null, c.name);
     const venue_name = d.venue_name ?? prev.venue_name ?? null;
     const location_text = d.location_text ?? prev.location_text ?? null;
 
