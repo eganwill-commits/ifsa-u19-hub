@@ -147,7 +147,7 @@ const MAX_PAGES = 12;
  * Category pages are paginated at 50 events. Reading only page 1 is why the first
  * run stopped at late February -- March and April were on page 2.
  */
-async function scrapeListPaged(baseUrl, division, discipline, defaultGender, defaultStatus, pastView) {
+async function scrapeListPaged(baseUrl, division, discipline, defaultGender, defaultStatus, pastView, isNew) {
   const all = [];
   for (let page = 1; page <= MAX_PAGES; page++) {
     const url = page === 1
@@ -160,6 +160,13 @@ async function scrapeListPaged(baseUrl, division, discipline, defaultGender, def
     });
     if (!rows.length) break;
     all.push(...rows);
+
+    // Stop paging a source that is only repeating what we already have. The
+    // competition pages mirror the category pages, so without this each one walks
+    // 12 pages to contribute nothing -- ~70 pointless requests against IFSA.
+    // Always read at least two pages before concluding that.
+    if (page >= 2 && isNew && !rows.some(isNew)) break;
+
     await sleep(400); // be a good citizen; this is what tripped the throttle before
   }
   return all;
@@ -244,8 +251,9 @@ async function main() {
   const map = new Map();
 
   for (const src of CATEGORY_SOURCES) {
-    const upcoming = await scrapeListPaged(src.url, src.division, src.discipline, src.gender, 'upcoming', false);
-    const past = await scrapeListPaged(src.url, src.division, src.discipline, src.gender, 'completed', true);
+    const isNew = (c) => !map.has(c.href + '|' + c.division);
+    const upcoming = await scrapeListPaged(src.url, src.division, src.discipline, src.gender, 'upcoming', false, isNew);
+    const past = await scrapeListPaged(src.url, src.division, src.discipline, src.gender, 'completed', true, isNew);
     let added = 0;
     for (const c of upcoming.concat(past)) {
       const key = c.href + '|' + c.division;
@@ -256,7 +264,8 @@ async function main() {
   }
 
   for (const src of COMPETITION_SOURCES) {
-    const events = await scrapeListPaged(src.url, src.division, src.discipline, undefined, 'upcoming', false);
+    const isNew = (c) => !map.has(c.href + '|' + c.division);
+    const events = await scrapeListPaged(src.url, src.division, src.discipline, undefined, 'upcoming', false, isNew);
     let added = 0;
     for (const c of events) {
       const key = c.href + '|' + c.division;
@@ -338,9 +347,25 @@ async function main() {
 
   console.log('Upserting ' + payload.length + ' rows (geocoded ' + geocodeCalls + ' this run)...');
   for (let i = 0; i < payload.length; i += 100) {
-    await sb('/rest/v1/ifsa_events?on_conflict=ifsa_url,division', 'POST', payload.slice(i, i + 100), {
-      Prefer: 'resolution=merge-duplicates,return=minimal',
-    });
+    const batch = payload.slice(i, i + 100);
+    try {
+      await sb('/rest/v1/ifsa_events?on_conflict=ifsa_url,division', 'POST', batch, {
+        Prefer: 'resolution=merge-duplicates,return=minimal',
+      });
+    } catch (err) {
+      console.error('\nBatch starting at row ' + i + ' failed. Retrying one at a time to find it...');
+      for (const row of batch) {
+        try {
+          await sb('/rest/v1/ifsa_events?on_conflict=ifsa_url,division', 'POST', [row], {
+            Prefer: 'resolution=merge-duplicates,return=minimal',
+          });
+        } catch (rowErr) {
+          console.error('  REJECTED: ' + row.name + ' [' + row.division + '] ' + row.ifsa_url);
+          console.error('    ' + rowErr.message.slice(0, 300));
+        }
+      }
+      continue;
+    }
     process.stdout.write('  saved ' + Math.min(i + 100, payload.length) + '/' + payload.length + '\r');
   }
 
