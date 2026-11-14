@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
+import { compListCutoff } from "@/lib/season";
 
 type EventRow = {
   id: string;
@@ -50,7 +51,7 @@ export default function EventsPage() {
   useEffect(() => {
     let active = true;
     const load = async () => {
-      const { data } = await supabase.from("ifsa_events").select("*").eq("hidden", false).order("start_date", { ascending: true }).limit(500);
+      const { data } = await supabase.from("ifsa_events").select("*").eq("hidden", false).or(`start_date.gte.${compListCutoff()},start_date.is.null`).order("start_date", { ascending: true }).limit(500);
       if (!active) return;
       setEvents((data || []) as EventRow[]);
       setLoading(false);
