@@ -304,6 +304,32 @@ function sanitizeDate(ymd, eventName) {
   return fixed;
 }
 
+/**
+ * Registration windows carry the same upstream typos as event dates (2027
+ * Eaglecrest reads "2100-01-15"). A valid window sits in the year before the
+ * event starts. If it does not, try the same month/day in the event's year and
+ * the year before; otherwise store null rather than a misleading time.
+ */
+function sanitizeRegTime(iso, startYmd, eventName) {
+  if (!iso || !startYmd) return iso || null;
+  const start = Date.parse(startYmd + 'T23:59:59Z');
+  const ok = (t) => t <= start && t >= start - 400 * 86400000;
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return null;
+  if (ok(t)) return iso;
+  const sy = Number(startYmd.slice(0, 4));
+  for (const y of [sy, sy - 1]) {
+    const cand = Date.parse(String(y) + new Date(t).toISOString().slice(4));
+    if (ok(cand)) {
+      const fixed = new Date(cand).toISOString();
+      console.warn('  FIXED registration time typo on "' + eventName + '": ' + iso + ' -> ' + fixed);
+      return fixed;
+    }
+  }
+  console.warn('  WARN implausible registration time ' + iso + ' on "' + eventName + '"; storing null');
+  return null;
+}
+
 async function mapLimit(items, limit, fn) {
   const results = new Array(items.length);
   let next = 0;
@@ -424,8 +450,8 @@ async function main() {
     const keep = (k) => d[k] ?? prev[k] ?? null;
     const links = {
       event_guide_url: keep('event_guide_url'),
-      registration_opens: keep('registration_opens'),
-      registration_closes: keep('registration_closes'),
+      registration_opens: sanitizeRegTime(keep('registration_opens'), start_date, c.name),
+      registration_closes: sanitizeRegTime(keep('registration_closes'), start_date, c.name),
       contact_email: keep('contact_email'),
       venue_website: keep('venue_website'),
       ifsa_region: keep('ifsa_region'),
