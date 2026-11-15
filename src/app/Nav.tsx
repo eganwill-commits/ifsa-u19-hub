@@ -8,8 +8,6 @@ const links = [
   { href: '/rankings', label: 'Rankings' },
   { href: '/points', label: 'Points' },
   { href: '/rules', label: 'Rules' },
-  // '/admin' intentionally not linked: its anon-key writes are blocked by RLS, so the
-  // page cannot actually save. Still reachable by URL; rebuild server-side or remove.
 ];
 
 export default function Nav() {
