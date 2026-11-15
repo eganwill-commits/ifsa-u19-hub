@@ -1,15 +1,7 @@
 import type { NextConfig } from 'next';
 
-const nextConfig: NextConfig = {
-  async redirects() {
-    return [
-      {
-        source: '/',
-        destination: '/events',
-        permanent: false,
-      },
-    ];
-  },
-};
+// No redirects: "/" is the hub home (search, followed athletes, next comps).
+// It used to redirect to /events, which hid the home page entirely.
+const nextConfig: NextConfig = {};
 
 export default nextConfig;

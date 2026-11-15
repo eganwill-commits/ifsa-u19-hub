@@ -31,6 +31,9 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
 const CONCURRENCY = 6;        // polite against ifsafreeride.org
 const GEOCODE_BUDGET = 40;    // rest fill in on later runs
 const REFRESH_WINDOW_DAYS = 7; // also re-check events that just happened
+// Bump when fetchEventDetails learns new fields: every row below this version gets
+// its detail page re-read once (a one-time backfill), then goes back to incremental.
+const DETAILS_VERSION = 2;
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Safari/605.1.15';
 const HEADERS = {
@@ -195,12 +198,75 @@ async function fetchEventDetails(url) {
   const region   = $('.tribe-region').first().text().trim()   || $('[itemprop="addressRegion"]').first().text().trim()   || '';
   const country  = $('.tribe-country-name').first().text().trim() || $('[itemprop="addressCountry"]').first().text().trim() || '';
 
+  // --- Links + registration (details_version 2) ---------------------------
+  // IFSA renders these as plain label/value text, not microdata, so read the
+  // flattened page text. Verified against the 2027 event template (Nov 2026).
+  const text = $('body').text().replace(/\s+/g, ' ');
+  const grab = (re) => { const m = text.match(re); return m ? m[1].trim() : null; };
+  const TS = '(\\d{4}-\\d{2}-\\d{2} \\d{1,2}:\\d{2} ?[AP]M(?: [A-Z]{2,5})?)';
+  const registration_opens = parseIfsaTime(grab(new RegExp('Registration Start Time\\s*' + TS, 'i')));
+  const registration_closes = parseIfsaTime(grab(new RegExp('Registration Close Time\\s*' + TS, 'i')));
+
+  // The event's own contact sits in the details row; the footer also has
+  // support@ifsafreeride.org, which we do not want.
+  let contact_email = null;
+  $('a[href^="mailto:"]').each((_, a) => {
+    if (contact_email) return;
+    const addr = ($(a).attr('href') || '').replace(/^mailto:/i, '').split('?')[0].trim();
+    if (!/@/.test(addr) || /support@ifsafreeride\.org/i.test(addr)) return;
+    if ($(a).closest('.textwidget, footer, .synved-social-button').length) return;
+    contact_email = addr;
+  });
+
+  let venue_website = null;
+  $('a').each((_, a) => {
+    if (!venue_website && /View Venue Website/i.test($(a).text())) venue_website = $(a).attr('href') || null;
+  });
+
+  // "Supporting Information" / Event Guide is a Google Doc link on the page.
+  let event_guide_url = null;
+  $('a[href*="docs.google.com"], a[href*="drive.google.com"]').each((_, a) => {
+    if (!event_guide_url) event_guide_url = $(a).attr('href') || null;
+  });
+
+  // Markup: <h4>Region</h4> Far West <dd class="tribe-venue-url">… — the value is
+  // a bare text node right after the heading.
+  let ifsa_region = null;
+  $('h4').each((_, h) => {
+    if (ifsa_region || $(h).text().trim() !== 'Region') return;
+    const nxt = h.nextSibling;
+    const v = nxt && nxt.type === 'text' ? $(nxt).text().trim() : '';
+    if (v && v.length <= 40) ifsa_region = v;
+  });
+  const street_address = $('.tribe-street-address').first().text().trim() || null;
+
   return {
     start_date: ymd(startIso),
     end_date: ymd(endIso),
     venue_name: venue || null,
     location_text: [locality, region, country].filter(Boolean).join(', ') || null,
+    registration_opens, registration_closes, contact_email, venue_website,
+    event_guide_url, ifsa_region, street_address,
+    details_version: DETAILS_VERSION,
   };
+}
+
+/**
+ * IFSA prints registration times like "2026-12-08 07:00 PM MST". Convert to an
+ * ISO timestamp. Unknown zone abbreviations fall back to MST, the site's default.
+ */
+const TZ_OFFSETS = { UTC: '+00:00', GMT: '+00:00', EST: '-05:00', EDT: '-04:00', CST: '-06:00', CDT: '-05:00',
+  MST: '-07:00', MDT: '-06:00', PST: '-08:00', PDT: '-07:00', AKST: '-09:00', AKDT: '-08:00',
+  CLT: '-04:00', CLST: '-03:00', ART: '-03:00' };
+function parseIfsaTime(s) {
+  if (!s) return null;
+  const m = s.match(/^(\d{4}-\d{2}-\d{2}) (\d{1,2}):(\d{2}) ?([AP]M)(?: ([A-Z]{2,5}))?$/i);
+  if (!m) return null;
+  let h = Number(m[2]) % 12;
+  if (m[4].toUpperCase() === 'PM') h += 12;
+  const off = TZ_OFFSETS[(m[5] || 'MST').toUpperCase()] || TZ_OFFSETS.MST;
+  const iso = `${m[1]}T${String(h).padStart(2, '0')}:${m[3]}:00${off}`;
+  return Number.isNaN(Date.parse(iso)) ? null : new Date(iso).toISOString();
 }
 
 
@@ -315,13 +381,14 @@ async function main() {
   if (!scraped.length) throw new Error('Scraped 0 events; refusing to write (IFSA markup may have changed)');
 
   // What we already know, so we can skip detail pages we do not need.
-  const existingRows = await sb('/rest/v1/ifsa_events?select=ifsa_url,division,start_date,end_date,venue_name,location_text,lat,lon', 'GET');
+  const existingRows = await sb('/rest/v1/ifsa_events?select=ifsa_url,division,start_date,end_date,venue_name,location_text,lat,lon,event_guide_url,registration_opens,registration_closes,contact_email,venue_website,ifsa_region,street_address,details_version', 'GET');
   const existing = new Map(existingRows.map((r) => [r.ifsa_url + '|' + r.division, r]));
 
   const cutoff = new Date(Date.now() - REFRESH_WINDOW_DAYS * 86400000).toISOString().slice(0, 10);
   const needsDetail = scraped.filter((c) => {
     const prev = existing.get(c.href + '|' + c.division);
     if (!prev || !prev.start_date) return true;          // new, or never dated
+    if ((prev.details_version || 0) < DETAILS_VERSION) return true; // one-time backfill of new fields
     if (prev.start_date >= cutoff) return true;           // upcoming/recent: dates can move
     return false;                                         // settled history
   });
@@ -353,6 +420,19 @@ async function main() {
     const end_date = sanitizeDate(d.end_date ?? prev.end_date ?? null, c.name);
     const venue_name = d.venue_name ?? prev.venue_name ?? null;
     const location_text = d.location_text ?? prev.location_text ?? null;
+    // Never clobber a known link with null if a page fetch came back thin.
+    const keep = (k) => d[k] ?? prev[k] ?? null;
+    const links = {
+      event_guide_url: keep('event_guide_url'),
+      registration_opens: keep('registration_opens'),
+      registration_closes: keep('registration_closes'),
+      contact_email: keep('contact_email'),
+      venue_website: keep('venue_website'),
+      ifsa_region: keep('ifsa_region'),
+      street_address: keep('street_address'),
+      // Only advance the version when the detail page was actually read.
+      details_version: d.details_version ?? prev.details_version ?? 0,
+    };
 
     let lat = prev.lat ?? null;
     let lon = prev.lon ?? null;
@@ -376,6 +456,7 @@ async function main() {
       ifsa_url: c.href,
       status: c.status || 'upcoming',
       start_date, end_date, venue_name, location_text, lat, lon,
+      ...links,
       updated_at: new Date().toISOString(),
     });
   }

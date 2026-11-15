@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabaseServer";
 import Anthropic from "@anthropic-ai/sdk";
+import { compListCutoff, seasonOf } from "@/lib/season";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -39,8 +40,8 @@ export async function POST(req: Request) {
 
     for (const name of candidates) {
       const [{ data: rankings }, { data: results }] = await Promise.all([
-        sb.from("rankings_snapshots")
-          .select("athlete_name, division, place, points, discipline, gender")
+        sb.from("rankings_current")
+          .select("athlete_name, division, place, points, discipline, gender, series_name")
           .ilike("athlete_name", '%' + name + '%')
           .limit(20),
         sb.from("event_results")
@@ -73,18 +74,37 @@ export async function POST(req: Request) {
     }
 
     if (rankingsData.length === 0 && eventResultsData.length === 0) {
-      const { data } = await sb.from("rankings_snapshots")
-        .select("athlete_name, division, place, points")
+      const { data } = await sb.from("rankings_current")
+        .select("athlete_name, division, discipline, gender, place, points, series_name")
+        .lte("place", 10)
         .order("place", { ascending: true })
         .limit(100);
       rankingsData = data ?? [];
     }
 
-    const { data: events } = await sb.from("ifsa_events")
-      .select("name, status, start_date, end_date, venue_name, location_text, stars, discipline, gender, division")
+    // One line per competition (rows are per division), current + last season,
+    // with registration windows and links so it can answer "when does reg open".
+    const { data: eventRows } = await sb.from("ifsa_events")
+      .select("name, status, start_date, end_date, venue_name, location_text, stars, division, ifsa_url, liveheats_url, event_guide_url, registration_opens, registration_closes, venue_website, contact_email, ifsa_region")
       .eq("hidden", false)
-      .order("start_date", { ascending: false })
-      .limit(200);
+      .gte("start_date", compListCutoff())
+      .order("start_date", { ascending: true })
+      .limit(1000);
+    const comps = new Map<string, any>();
+    for (const r of eventRows ?? []) {
+      const k = r.ifsa_url || r.name;
+      const c = comps.get(k);
+      if (c) { if (r.division && !c.divisions.includes(r.division)) c.divisions.push(r.division); continue; }
+      const { division, ...rest } = r;
+      comps.set(k, { ...rest, divisions: division ? [division] : [] });
+    }
+    // Keep the prompt lean: finished comps only need what/where/when + results link.
+    const events = [...comps.values()].map((c) => {
+      if (c.status !== "completed" && c.status !== "cancelled") return c;
+      const { event_guide_url, registration_opens, registration_closes, venue_website, contact_email, ifsa_region, ifsa_url, ...slim } = c;
+      return slim;
+    });
+    const today = new Date();
 
     const context = `
 You are the IFSA Hub AI Assistant — an expert on everything related to IFSA (International Freeskiers & Snowboarders Association) junior freeride competition.
@@ -106,14 +126,19 @@ Use the database data below for specific events, athletes, and rankings. For que
 
 Be conversational, helpful, and direct. If you don't know something specific, say so and point them to ifsafreeride.org.
 
-EVENTS IN DATABASE (${events?.length ?? 0} total):
-${JSON.stringify(events ?? [], null, 2)}
+TODAY: ${today.toISOString().slice(0, 10)}. CURRENT SEASON: ${seasonOf(today)} (IFSA seasons run July-June and are named for the year they end).
+RANKINGS: there is ONE current junior ranking series covering all regions (named in series_name below) — do not split it into "North American" vs "South American" rankings. Only quote rankings from the data below; never quote last season's standings as current.
+REGISTRATION: registration_opens / registration_closes are UTC timestamps; state them in Mountain Time and say registration happens on LiveHeats (link the event's liveheats_url). Athletes need active IFSA + regional memberships first.
+LINKS: when you mention a specific event, link its event_guide_url, ifsa_url or liveheats_url where available. Keep answers short — this is a small chat panel on a phone.
 
-SEASON RANKINGS (${rankingsData.length} results):
-${JSON.stringify(rankingsData, null, 2)}
+EVENTS (${events.length} competitions, current + last season):
+${JSON.stringify(events)}
 
-EVENT RESULTS (${eventResultsData.length} results):
-${JSON.stringify(eventResultsData, null, 2)}
+CURRENT-SEASON RANKINGS (${rankingsData.length} rows):
+${JSON.stringify(rankingsData)}
+
+EVENT RESULTS (${eventResultsData.length} rows):
+${JSON.stringify(eventResultsData)}
     `.trim();
 
     const message = await client.messages.create({

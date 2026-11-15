@@ -25,14 +25,21 @@ export default async function AthleteProfilePage({ params }: { params: Promise<{
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  const [{ data: athlete }, { data: resultsData }] = await Promise.all([
+  const [{ data: athlete }, { data: resultsData }, { data: rankData }] = await Promise.all([
     supabase.from("athletes").select("id,name,liveheats_url").eq("id", id).single(),
     supabase
       .from("event_results")
       .select("event_name,division,place,score,stars,event_date,ifsa_event_id")
       .eq("athlete_id", id)
       .order("event_date", { ascending: false, nullsFirst: false }),
+    // Current-season standing(s). An athlete can rank in more than one division.
+    supabase
+      .from("rankings_current")
+      .select("division,place,points,series_name,place_change")
+      .eq("athlete_id", id)
+      .order("place", { ascending: true }),
   ]);
+  const rankings = (rankData ?? []) as { division: string; place: number; points: string | number; series_name: string | null; place_change: number | null }[];
 
   const results = (resultsData ?? []) as ResultRow[];
 
@@ -77,6 +84,27 @@ export default async function AthleteProfilePage({ params }: { params: Promise<{
           )}
           </div>
         </div>
+
+        {rankings.length > 0 && (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+            {rankings.map((r) => (
+              <a key={r.division} href="/rankings"
+                style={{ border: "1px solid #ffcc00", borderRadius: 10, padding: "8px 12px", textDecoration: "none", color: "#e8e8e8", background: "rgba(255,204,0,0.06)" }}>
+                <div style={{ fontSize: 10, color: "#ffcc00", fontFamily: "monospace", letterSpacing: 1 }}>
+                  {(r.series_name ?? "CURRENT RANKING").toUpperCase()}
+                </div>
+                <div style={{ fontWeight: 800, fontSize: 16 }}>
+                  #{r.place} <span style={{ fontWeight: 600, fontSize: 13, color: "#ccc" }}>{r.division} · {Number(r.points).toLocaleString()} pts</span>
+                  {r.place_change ? (
+                    <span style={{ fontSize: 12, marginLeft: 6, color: r.place_change > 0 ? "#4caf50" : "#e05555" }}>
+                      {r.place_change > 0 ? `▲${r.place_change}` : `▼${Math.abs(r.place_change)}`}
+                    </span>
+                  ) : null}
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 10, marginTop: 16 }}>
           {stats.map((s) => (

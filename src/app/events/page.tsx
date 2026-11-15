@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 import { compListCutoff } from "@/lib/season";
+import { registrationInfo, regBadgeLabel } from "@/lib/registration";
 
 type EventRow = {
   id: string;
@@ -19,6 +20,8 @@ type EventRow = {
   end_date: string | null;
   venue_name: string | null;
   location_text: string | null;
+  registration_opens: string | null;
+  registration_closes: string | null;
 };
 
 type Filters = { discipline: string; division: string; stars: string; status: string; search: string; };
@@ -46,12 +49,12 @@ export default function EventsPage() {
 
   const [events, setEvents] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState<Filters>({ discipline: "all", division: "all", stars: "all", status: "all", search: "" });
+  const [filters, setFilters] = useState<Filters>({ discipline: "all", division: "all", stars: "all", status: "upcoming", search: "" });
 
   useEffect(() => {
     let active = true;
     const load = async () => {
-      const { data } = await supabase.from("ifsa_events").select("*").eq("hidden", false).or(`start_date.gte.${compListCutoff()},start_date.is.null`).order("start_date", { ascending: true }).limit(500);
+      const { data } = await supabase.from("ifsa_events").select("*").eq("hidden", false).gte("start_date", compListCutoff()).order("start_date", { ascending: true }).limit(500);
       if (!active) return;
       setEvents((data || []) as EventRow[]);
       setLoading(false);
@@ -194,6 +197,18 @@ export default function EventsPage() {
                         </span>
                       ))}
                       {e.stars && <span style={{ fontSize: 11, color: "#ffcc00", fontWeight: 700 }}>{e.stars}★</span>}
+                      {(() => {
+                        if (e.status === "completed" || e.status === "cancelled") return null;
+                        const reg = registrationInfo(e.registration_opens, e.registration_closes);
+                        if (!reg || reg.state === "closed") return null;
+                        const open = reg.state === "open";
+                        return (
+                          <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap",
+                            background: open ? "#0d1f0d" : "rgba(0,0,0,0.4)", border: `1px solid ${open ? "#4caf50" : "#3a3a3a"}`, color: open ? "#4caf50" : "#ccc" }}>
+                            {regBadgeLabel(reg)}
+                          </span>
+                        );
+                      })()}
                     </div>
                     <div style={{ fontWeight: 700, fontSize: "clamp(13px, 3vw, 15px)", lineHeight: 1.3, marginBottom: 3 }}>{e.name}</div>
                     <div style={{ fontSize: "clamp(11px, 2.5vw, 13px)", color: "#aaa" }}>

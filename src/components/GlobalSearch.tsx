@@ -32,7 +32,7 @@ export default function GlobalSearch() {
       const [a, e] = await Promise.all([
         supabase.from('athletes').select('id,name').ilike('name', pattern).order('name').limit(6),
         supabase.from('ifsa_events').select('id,name,start_date,venue_name').ilike('name', pattern)
-          .or(`start_date.gte.${compListCutoff()},start_date.is.null`)
+          .gte('start_date', compListCutoff())
           .order('start_date', { ascending: false, nullsFirst: false }).limit(12),
       ]);
       if (seq.current !== mine) return; // a newer keystroke already won

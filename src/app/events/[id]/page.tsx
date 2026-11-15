@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import WeatherPanel from "@/components/WeatherPanel";
 import EventLiveHeats from "@/components/EventLiveHeats";
 import AutoRefresh from "@/components/AutoRefresh";
+import EventLinks from "@/components/EventLinks";
 import { getLiveHeatsEvent, getMatchedLiveHeatsEventId, parseLiveheatsEventId, competitorDivisions } from "@/lib/liveheats";
 
 type EventRow = {
@@ -23,6 +24,12 @@ type EventRow = {
   location_text: string | null;
   lat: number | null;
   lon: number | null;
+  registration_opens: string | null;
+  registration_closes: string | null;
+  venue_website: string | null;
+  contact_email: string | null;
+  ifsa_region: string | null;
+  street_address: string | null;
 };
 
 const STATUS_COLORS: Record<string, { bg: string; color: string; border: string }> = {
@@ -51,6 +58,8 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
     ? competitorDivisions(liveheats.divisions, { division: e.division, discipline: e.discipline, gender: e.gender })
     : [];
   const hasLiveData = !!liveheats && lhDivisions.length > 0;
+  // Link to LiveHeats even when only the on-the-fly name match found it.
+  const liveheatsHref = e.liveheats_url ?? (lhId ? `https://liveheats.com/events/${lhId}` : null);
 
   const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }) : "TBD";
   const st = STATUS_COLORS[e.status?.toLowerCase() ?? ""] ?? STATUS_COLORS.upcoming;
@@ -85,27 +94,11 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
             <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: st.bg, border: `1px solid ${st.border}`, color: st.color, fontFamily: "monospace" }}>
               {e.status?.toUpperCase() ?? "UPCOMING"}
             </span>
+{e.stars ? (
             <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 999, border: "1px solid #333", color: "#ffcc00" }}>
               {e.stars} star
             </span>
-          </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {e.event_guide_url && (
-              <a href={e.event_guide_url} target="_blank" rel="noreferrer"
-                style={{ fontSize: 13, color: "#ffcc00", border: "1px solid #ffcc00", borderRadius: 8, padding: "6px 14px", textDecoration: "none" }}>
-                Event Guide ↗
-              </a>
-            )}
-            <a href={e.ifsa_url} target="_blank" rel="noreferrer"
-              style={{ fontSize: 13, color: "#aaa", border: "1px solid #333", borderRadius: 8, padding: "6px 14px", textDecoration: "none" }}>
-              View on IFSA ↗
-            </a>
-            {e.liveheats_url && (
-              <a href={e.liveheats_url} target="_blank" rel="noreferrer"
-                style={{ fontSize: 13, color: "#aaa", border: "1px solid #333", borderRadius: 8, padding: "6px 14px", textDecoration: "none" }}>
-                View on LiveHeats ↗
-              </a>
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -135,6 +128,26 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
         ))}
       </div>
 
+      <EventLinks
+        name={e.name}
+        status={e.status}
+        startDate={e.start_date}
+        endDate={e.end_date}
+        ifsaUrl={e.ifsa_url}
+        liveheatsUrl={liveheatsHref}
+        eventGuideUrl={e.event_guide_url}
+        venueName={e.venue_name}
+        venueWebsite={e.venue_website}
+        streetAddress={e.street_address}
+        locationText={e.location_text}
+        lat={e.lat}
+        lon={e.lon}
+        contactEmail={e.contact_email}
+        region={e.ifsa_region}
+        registrationOpens={e.registration_opens}
+        registrationCloses={e.registration_closes}
+      />
+
       {e.lat && e.lon && (
         <div style={{ border: "1px solid #2a2a2a", borderRadius: 16, padding: "20px", marginBottom: 16, background: "rgba(10,10,10,0.8)" }}>
           <h2 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 700 }}>
@@ -152,9 +165,9 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
           <div style={{ padding: "16px 20px", borderBottom: "1px solid #2a2a2a" }}>
             <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Results and Scoring</h2>
           </div>
-          {e.liveheats_url ? (
+          {liveheatsHref ? (
             <iframe
-              src={e.liveheats_url}
+              src={liveheatsHref!}
               style={{ width: "100%", height: "clamp(400px, 80vw, 700px)", border: "none", background: "#fff", display: "block" }}
               title="LiveHeats Results"
             />

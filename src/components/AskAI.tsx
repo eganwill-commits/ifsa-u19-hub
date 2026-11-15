@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
+import MiniMarkdown from "./MiniMarkdown";
 
 type Message = { role: "user" | "ai"; text: string };
 
@@ -114,7 +115,7 @@ export default function AskAI() {
                 border: m.role === "ai" ? "1px solid #2a2a2a" : "none",
                 wordBreak: "break-word",
               }}>
-                {m.text}
+                {m.role === "ai" ? <MiniMarkdown text={m.text} /> : m.text}
               </div>
             ))}
             {loading && (
