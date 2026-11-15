@@ -2,15 +2,21 @@ name: Sync IFSA data
 
 # Keeps the hub's data fresh: scrapes events, matches LiveHeats, updates
 # statuses, then pulls results, rankings and athletes into Supabase.
-# Runs daily off-season (hourly in season) and can be triggered manually from the Actions tab.
+# Full run daily, hourly while any comp is in progress (see scripts/should-run.js).
+# Can be triggered manually from the Actions tab.
 
 on:
   schedule:
-    # Off-season: daily is plenty -- there is nothing to refresh between seasons.
-    # IN SEASON (from late December) switch back to '17 * * * *' for hourly updates
-    # during competition weekends.
-    - cron: '17 12 * * *' # daily at 12:17 UTC
+    # Hourly. scripts/should-run.js turns most of these into a ~10s no-op: the
+    # full sync runs once a day (12 UTC) plus every hour while a comp is in
+    # progress, so comp weekends update live without anyone editing this file.
+    - cron: '17 * * * *'
   workflow_dispatch: {}
+
+# Never overlap: a comp-day run can take ~15 min.
+concurrency:
+  group: sync-ifsa-data
+  cancel-in-progress: false
 
 jobs:
   sync:
@@ -24,7 +30,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+
+      - name: Decide whether to sync
+        id: gate
+        run: node scripts/should-run.js
+
       - run: npm ci
+        if: steps.gate.outputs.run == 'true'
 
       # 1) Refresh the event list from IFSA.
       #    Was a curl to the Vercel route; that route could not finish inside the
@@ -32,28 +44,35 @@ jobs:
       #    Node script with no timeout. Still failure-tolerant, but the freshness
       #    check at the end turns a failure here into a red X instead of silence.
       - name: Sync events
+        if: steps.gate.outputs.run == 'true'
         run: node scripts/sync-events.js || echo "sync-events failed (continuing)"
 
       # 2) Match any unlinked events to LiveHeats
       - name: Match LiveHeats links
+        if: steps.gate.outputs.run == 'true'
         run: curl -fsS -m 300 -X POST "$APP_URL/api/match-liveheats" && echo "" || echo "match-liveheats failed (continuing)"
 
       # 3) Mark past events completed
       - name: Update statuses
+        if: steps.gate.outputs.run == 'true'
         run: curl -fsS -m 120 -X POST "$APP_URL/api/update-statuses" && echo "" || echo "update-statuses failed (continuing)"
 
       # 4) Pull results / rankings / athletes straight into Supabase (no Vercel timeout)
       - name: Scrape event results
+        if: steps.gate.outputs.run == 'true'
         run: node scripts/scrape-event-results.js
 
       - name: Scrape rankings
+        if: steps.gate.outputs.run == 'true'
         run: node scripts/scrape-rankings.js
 
       - name: Scrape athletes
+        if: steps.gate.outputs.run == 'true'
         run: node scripts/scrape-athletes.js
 
       # 5) Fail loudly if anything above silently stopped updating.
       #    Every step above tolerates failure, so without this a broken step
       #    is invisible. See scripts/check-freshness.js.
       - name: Check data freshness
+        if: steps.gate.outputs.run == 'true'
         run: node scripts/check-freshness.js

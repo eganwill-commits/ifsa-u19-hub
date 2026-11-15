@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
+import { prettyName } from '@/lib/names';
 import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
 import { unfollow, useFollows } from '@/lib/follows';
@@ -76,7 +77,7 @@ export default function MyAthletes() {
             <div key={f.id} style={{ border: '1px solid #2a2a2a', borderRadius: 16, padding: '16px 18px', background: 'rgba(10,10,10,0.8)' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                 <Link href={`/athletes/${f.id}`} style={{ color: '#e8e8e8', textDecoration: 'none', fontSize: 17, fontWeight: 700 }}>
-                  {f.name}
+                  {prettyName(f.name)}
                 </Link>
                 <button
                   onClick={() => unfollow(f.id)}

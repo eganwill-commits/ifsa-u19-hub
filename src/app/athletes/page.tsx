@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
+import { prettyName } from '@/lib/names';
 import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
 
@@ -70,7 +71,7 @@ export default function AthletesPage() {
                 onMouseEnter={(ev) => { (ev.currentTarget as HTMLDivElement).style.background = '#161616'; }}
                 onMouseLeave={(ev) => { (ev.currentTarget as HTMLDivElement).style.background = 'rgba(10,10,10,0.8)'; }}
               >
-                <span style={{ fontWeight: 600, fontSize: 15, color: '#e8e8e8' }}>{a.name}</span>
+                <span style={{ fontWeight: 600, fontSize: 15, color: '#e8e8e8' }}>{prettyName(a.name)}</span>
                 <span style={{ color: '#555', fontSize: 18, lineHeight: 1 }}>›</span>
               </div>
             </Link>

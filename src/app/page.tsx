@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
 import GlobalSearch from '@/components/GlobalSearch';
 import MyAthletes from '@/components/MyAthletes';
+import MyComps from '@/components/MyComps';
 
 type EventRow = {
   id: string;
@@ -68,6 +69,7 @@ export default function HomePage() {
 
       <GlobalSearch />
       <MyAthletes />
+      <MyComps />
 
       <section>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>

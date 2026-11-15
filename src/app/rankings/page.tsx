@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
+import { prettyName } from '@/lib/names';
+import { toggleFollow, useFollows } from '@/lib/follows';
 
 type RankRow = {
   athlete_id: string | null;
@@ -51,6 +53,8 @@ export default function RankingsPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   ), []);
 
+  const { follows } = useFollows();
+  const followedIds = useMemo(() => new Set(follows.map((f) => f.id)), [follows]);
   const [ageIdx, setAgeIdx] = useState(0);
   const [catIdx, setCatIdx] = useState(0);
   const [rows, setRows] = useState<RankRow[]>([]);
@@ -179,9 +183,17 @@ export default function RankingsPage() {
                         )}
                         <td style={{ padding: '10px 20px', fontWeight: 600 }}>
                           {r.athlete_id ? (
-                            <Link href={`/athletes/${r.athlete_id}`} style={{ color: '#e8e8e8', textDecoration: 'none' }}>{r.athlete_name}</Link>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                              <button
+                                onClick={() => toggleFollow({ id: r.athlete_id!, name: prettyName(r.athlete_name) })}
+                                title={followedIds.has(r.athlete_id) ? 'Unfollow' : 'Follow'}
+                                aria-label={followedIds.has(r.athlete_id) ? `Unfollow ${prettyName(r.athlete_name)}` : `Follow ${prettyName(r.athlete_name)}`}
+                                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 15, color: followedIds.has(r.athlete_id) ? '#ffcc00' : '#444', lineHeight: 1 }}
+                              >{followedIds.has(r.athlete_id) ? '★' : '☆'}</button>
+                              <Link href={`/athletes/${r.athlete_id}`} style={{ color: followedIds.has(r.athlete_id) ? '#ffcc00' : '#e8e8e8', textDecoration: 'none' }}>{prettyName(r.athlete_name)}</Link>
+                            </span>
                           ) : (
-                            r.athlete_name
+                            prettyName(r.athlete_name)
                           )}
                         </td>
                         <td style={{ padding: '10px 20px', textAlign: 'right', color: '#aaa', fontFamily: 'monospace' }}>{r.points ?? '—'}</td>

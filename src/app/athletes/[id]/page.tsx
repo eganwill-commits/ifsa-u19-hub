@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import FollowButton from "@/components/FollowButton";
+import { prettyName } from "@/lib/names";
+import { seasonOf } from "@/lib/season";
 
 type ResultRow = {
   event_name: string | null;
@@ -17,6 +20,19 @@ const PLACE_COLORS: Record<number, string> = {
   2: "#d0d0d0",
   3: "#cd7f32",
 };
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+  const [{ data: a }, { data: rk }] = await Promise.all([
+    sb.from("athletes").select("name").eq("id", id).maybeSingle(),
+    sb.from("rankings_current").select("division,place,points").eq("athlete_id", id).order("place").limit(1),
+  ]);
+  const name = a?.name ? prettyName(a.name) : "Athlete";
+  const r = rk?.[0];
+  const description = r ? `#${r.place} in ${r.division} · ${Number(r.points).toLocaleString()} pts. Results and ranking on IFSA Event Hub.` : "IFSA junior freeride results and ranking.";
+  return { title: `${name} · IFSA Event Hub`, description, openGraph: { title: name, description, siteName: "IFSA Event Hub" } };
+}
 
 export default async function AthleteProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -44,7 +60,7 @@ export default async function AthleteProfilePage({ params }: { params: Promise<{
   const results = (resultsData ?? []) as ResultRow[];
 
   if (!athlete && results.length === 0) return notFound();
-  const displayName = athlete?.name ?? null;
+  const displayName = athlete?.name ? prettyName(athlete.name) : null;
 
   const podiums = results.filter((r) => r.place != null && r.place <= 3).length;
   const wins = results.filter((r) => r.place === 1).length;
@@ -55,6 +71,14 @@ export default async function AthleteProfilePage({ params }: { params: Promise<{
 
   const fmtDate = (d: string | null) =>
     d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }) : "—";
+
+  // Junior season runs June 1 – May 31 (rulebook p.31). Count this season's point
+  // events: max 4 count, max three 3★. U12 earns no points.
+  const season = seasonOf();
+  const seasonStart = `${season - 1}-06-01`;
+  const seasonResults = results.filter((r) => r.event_date && r.event_date >= seasonStart && !/U12/i.test(r.division ?? ""));
+  const usedEvents = new Set(seasonResults.map((r) => `${r.event_name}|${r.event_date}`)).size;
+  const usedThree = new Set(seasonResults.filter((r) => r.stars === 3).map((r) => `${r.event_name}|${r.event_date}`)).size;
 
   const stats: { label: string; value: string }[] = [
     { label: "RESULTS", value: String(results.length) },
@@ -103,6 +127,15 @@ export default async function AthleteProfilePage({ params }: { params: Promise<{
                 </div>
               </a>
             ))}
+          </div>
+        )}
+
+        {(usedEvents > 0 || rankings.length > 0) && (
+          <div style={{ marginTop: 12, fontSize: 13, color: "#bbb" }}>
+            {season} season: <b style={{ color: usedEvents >= 4 ? "#ffcc00" : "#e8e8e8" }}>{Math.min(usedEvents, 4)} of 4</b> point events used
+            {" · "}<b style={{ color: usedThree >= 3 ? "#ffcc00" : "#e8e8e8" }}>{Math.min(usedThree, 3)} of 3</b> 3★ starts used
+            {usedEvents >= 4 && <span style={{ color: "#888" }}> — more regular-season comps are Friendly-only (JFC and Regional Championships aside)</span>}
+            {" "}<a href="/points" style={{ color: "#ffcc00", fontSize: 12 }}>how it works</a>
           </div>
         )}
 

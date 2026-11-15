@@ -19,6 +19,7 @@
 
 require('dotenv').config({ path: '.env.local' });
 const cheerio = require('cheerio');
+const { parseGuide, hasContent, docIdFromUrl } = require('./lib/parse-guide');
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -512,7 +513,45 @@ async function main() {
   }
 
   const stillMissing = payload.filter((p) => p.lat == null).length;
-  console.log('\nDone. ' + payload.length + ' rows; ' + stillMissing + ' still need coordinates (next run picks them up).');
+  console.log('\nSaved. ' + payload.length + ' rows; ' + stillMissing + ' still need coordinates (next run picks them up).');
+
+  await syncGuides();
+  console.log('Done.');
+}
+
+/**
+ * Event Guides: organizers keep editing these Google Docs right up to the comp,
+ * so re-read every upcoming comp's guide each run (one fetch per doc, shared by
+ * all of that comp's division rows). Failures are logged and skipped -- a guide
+ * that can't be read never blanks out what we already have.
+ */
+async function syncGuides() {
+  const since = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10);
+  const rows = await sb('/rest/v1/ifsa_events?select=id,event_guide_url&event_guide_url=not.is.null&start_date=gte.' + since, 'GET');
+  const byDoc = new Map();
+  for (const r of rows) {
+    const id = docIdFromUrl(r.event_guide_url);
+    if (!id) continue;
+    if (!byDoc.has(id)) byDoc.set(id, []);
+    byDoc.get(id).push(r.id);
+  }
+  console.log('Event guides to read: ' + byDoc.size);
+  let ok = 0, failed = 0;
+  await mapLimit([...byDoc.entries()], 3, async ([docId, ids]) => {
+    try {
+      const html = await getHtml('https://docs.google.com/document/d/' + docId + '/mobilebasic', { tries: 2, required: false });
+      if (!html) { failed++; return; }
+      const guide = parseGuide(html);
+      if (!hasContent(guide)) { failed++; console.warn('  WARN guide ' + docId + ' parsed empty (private doc or new template?)'); return; }
+      const body = { guide_info: guide, guide_fetched_at: new Date().toISOString() };
+      await sb('/rest/v1/ifsa_events?id=in.(' + ids.join(',') + ')', 'PATCH', body, { Prefer: 'return=minimal' });
+      ok++;
+    } catch (err) {
+      failed++;
+      console.warn('  WARN guide ' + docId + ': ' + err.message.slice(0, 200));
+    }
+  });
+  console.log('Event guides: ' + ok + ' updated, ' + failed + ' skipped');
 }
 
 main().catch((err) => {

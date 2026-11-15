@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 import { compListCutoff } from "@/lib/season";
 import { registrationInfo, regBadgeLabel } from "@/lib/registration";
+import CalendarSubscribe from "@/components/CalendarSubscribe";
 
 type EventRow = {
   id: string;
@@ -22,9 +23,25 @@ type EventRow = {
   location_text: string | null;
   registration_opens: string | null;
   registration_closes: string | null;
+  ifsa_region: string | null;
 };
 
-type Filters = { discipline: string; division: string; stars: string; status: string; search: string; };
+type Filters = { discipline: string; division: string; stars: string; status: string; search: string; region: string; quick: string; };
+
+// IFSA's region for a comp; South American comps carry no region on the IFSA site.
+const regionOf = (e: { ifsa_region: string | null; location_text: string | null }) =>
+  e.ifsa_region ?? (/chile|argentina/i.test(e.location_text ?? "") ? "South America" : null);
+const REGION_OPTIONS = ["Northern", "Rockies", "Intermountain", "Far West", "PNW", "East", "Western Canada", "Eastern Canada", "South America"];
+
+// Fri-Sun window of the current week (or the coming one, Mon-Thu).
+function weekendWindow(now = new Date()): [string, string] {
+  const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  const dow = d.getUTCDay(); // 0 Sun .. 6 Sat
+  const toFri = dow === 0 ? -2 : dow === 6 ? -1 : 5 - dow;
+  const fri = new Date(d); fri.setUTCDate(d.getUTCDate() + toFri);
+  const sun = new Date(fri); sun.setUTCDate(fri.getUTCDate() + 2);
+  return [fri.toISOString().slice(0, 10), sun.toISOString().slice(0, 10)];
+}
 
 const STATUS_STYLES: Record<string, { bg: string; color: string; border: string; bar: string }> = {
   completed: { bg: "#0d1f0d", color: "#4caf50", border: "#1a3a1a", bar: "#4caf50" },
@@ -49,7 +66,7 @@ export default function EventsPage() {
 
   const [events, setEvents] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState<Filters>({ discipline: "all", division: "all", stars: "all", status: "upcoming", search: "" });
+  const [filters, setFilters] = useState<Filters>({ discipline: "all", division: "all", stars: "all", status: "upcoming", search: "", region: "all", quick: "none" });
 
   useEffect(() => {
     let active = true;
@@ -69,7 +86,18 @@ export default function EventsPage() {
     !!e.start_date && e.status !== "completed" && e.status !== "cancelled"
     && todayYmd >= e.start_date && todayYmd <= (e.end_date ?? e.start_date);
 
+  const [wkStart, wkEnd] = weekendWindow();
+  const now = new Date();
   const filtered = events.filter((e) => {
+    if (filters.region !== "all" && regionOf(e) !== filters.region) return false;
+    if (filters.quick === "reg_open") {
+      const o = e.registration_opens ? new Date(e.registration_opens) : null;
+      const c = e.registration_closes ? new Date(e.registration_closes) : null;
+      if (!o || !c || now < o || now >= c) return false;
+    }
+    if (filters.quick === "weekend") {
+      if (!e.start_date || e.start_date > wkEnd || (e.end_date ?? e.start_date) < wkStart) return false;
+    }
     if (filters.discipline !== "all" && e.discipline !== filters.discipline) return false;
     if (filters.division !== "all" && (e.division ?? "U19") !== filters.division) return false;
     if (filters.stars !== "all" && String(e.stars) !== filters.stars) return false;
@@ -95,11 +123,16 @@ export default function EventsPage() {
   const repOf = (rows: EventRow[]) =>
     [...rows].sort((a, b) => (DIV_ORDER[b.division ?? "U19"] ?? 0) - (DIV_ORDER[a.division ?? "U19"] ?? 0))[0];
 
+  const newestFirst = filters.status === "completed";
   const competitions = [...groupComps(filtered).values()].map((rows) => ({
     rep: repOf(rows),
     divisions: [...new Set(rows.map((r) => r.division ?? "U19"))].sort((a, b) => (DIV_ORDER[a] ?? 9) - (DIV_ORDER[b] ?? 9)),
     live: rows.some(isLiveEvent),
-  }));
+  })).sort((a, b) => {
+    const x = a.rep.start_date ?? "9999", y = b.rep.start_date ?? "9999";
+    return newestFirst ? y.localeCompare(x) : x.localeCompare(y);
+  });
+  const monthOf = (d: string | null) => d ? new Date(d + "T00:00:00Z").toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" }) : "Date TBD";
 
   const allComps = [...groupComps(events).values()];
   const totalComps = allComps.length;
@@ -125,6 +158,7 @@ export default function EventsPage() {
     <main style={{ maxWidth: 1000, margin: "0 auto", fontFamily: "system-ui", padding: "24px 16px 60px", color: "#e8e8e8" }}>
       <h1 style={{ fontSize: "clamp(20px, 5vw, 28px)", fontWeight: 800, marginBottom: 4 }}>IFSA Event Hub</h1>
       <p style={{ color: "#aaa", fontSize: 14, marginBottom: 16 }}>Freeride competitions for U12, U15, and U19 athletes.</p>
+      <div style={{ marginBottom: 14 }}><CalendarSubscribe compact /></div>
 
       <input
         type="text"
@@ -160,6 +194,17 @@ export default function EventsPage() {
           <FilterBtn label="Upcoming" filterKey="status" value="upcoming" />
           <FilterBtn label="Completed" filterKey="status" value="completed" />
         </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
+          <span style={{ fontSize: 11, color: "#aaa", minWidth: 80, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Region</span>
+          <FilterBtn label="All" filterKey="region" value="all" />
+          {REGION_OPTIONS.map((r) => <FilterBtn key={r} label={r} filterKey="region" value={r} />)}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
+          <span style={{ fontSize: 11, color: "#aaa", minWidth: 80, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Quick</span>
+          <FilterBtn label="None" filterKey="quick" value="none" />
+          <FilterBtn label="Registration open" filterKey="quick" value="reg_open" />
+          <FilterBtn label="This weekend" filterKey="quick" value="weekend" />
+        </div>
       </div>
 
       <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
@@ -171,10 +216,16 @@ export default function EventsPage() {
       {competitions.length === 0 && <div style={{ color: "#aaa", fontSize: 14, fontStyle: "italic" }}>No events match your filters.</div>}
 
       <div style={{ display: "grid", gap: 8 }}>
-        {competitions.map(({ rep: e, divisions, live }) => {
+        {competitions.map(({ rep: e, divisions, live }, idx) => {
           const st = getStatus(e.status);
+          const month = monthOf(e.start_date);
+          const showMonth = idx === 0 || monthOf(competitions[idx - 1].rep.start_date) !== month;
           return (
-            <Link key={e.ifsa_url || e.id} href={`/events/${e.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+            <div key={e.ifsa_url || e.id}>
+            {showMonth && (
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#ffcc00", fontFamily: "monospace", letterSpacing: 1, textTransform: "uppercase", margin: idx === 0 ? "0 0 6px" : "14px 0 6px" }}>{month}</div>
+            )}
+            <Link href={`/events/${e.id}`} style={{ textDecoration: "none", color: "inherit" }}>
               <div style={{ border: "1px solid #1e1e1e", borderLeft: `3px solid ${st.bar}`, borderRadius: 12, padding: "12px 14px", background: "rgba(10,10,10,0.7)", transition: "background 0.1s" }}
                 onMouseEnter={(ev) => { const s = e.status?.toLowerCase(); (ev.currentTarget as HTMLDivElement).style.background = s === "completed" ? "#0d6b0d" : s === "upcoming" ? "#0d3d78" : "#141414"; }}
                 onMouseLeave={(ev) => { (ev.currentTarget as HTMLDivElement).style.background = "rgba(10,10,10,0.7)"; }}
@@ -219,6 +270,7 @@ export default function EventsPage() {
                 </div>
               </div>
             </Link>
+            </div>
           );
         })}
       </div>

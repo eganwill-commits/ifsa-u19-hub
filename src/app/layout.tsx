@@ -2,8 +2,10 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import Nav from './Nav';
 import AskAI from '@/components/AskAI';
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://ifsaeventhub.com'),
   title: 'IFSA Event Hub',
   description: 'Freeride competition events for U12, U15, and U19 athletes',
   manifest: '/manifest.json',
@@ -29,6 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Nav />
         {children}
         <AskAI />
+        <Analytics />
       </body>
     </html>
   );

@@ -1,9 +1,13 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import WeatherPanel from "@/components/WeatherPanel";
 import EventLiveHeats from "@/components/EventLiveHeats";
 import AutoRefresh from "@/components/AutoRefresh";
 import EventLinks from "@/components/EventLinks";
+import CompFollowButton from "@/components/CompFollowButton";
+import GuideHighlights, { type GuideInfo } from "@/components/GuideHighlights";
+import CompPoints from "@/components/CompPoints";
 import { getLiveHeatsEvent, getMatchedLiveHeatsEventId, parseLiveheatsEventId, competitorDivisions } from "@/lib/liveheats";
 
 type EventRow = {
@@ -30,6 +34,8 @@ type EventRow = {
   contact_email: string | null;
   ifsa_region: string | null;
   street_address: string | null;
+  guide_info: GuideInfo | null;
+  guide_fetched_at: string | null;
 };
 
 const STATUS_COLORS: Record<string, { bg: string; color: string; border: string }> = {
@@ -38,6 +44,29 @@ const STATUS_COLORS: Record<string, { bg: string; color: string; border: string 
   drawn:     { bg: "#1a1a00", color: "#f0c040", border: "#3a3a00" },
   cancelled: { bg: "#1f0d0d", color: "#e05555", border: "#3a1a1a" },
 };
+
+const sbMeta = () => createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const { data: e } = await sbMeta().from("ifsa_events")
+    .select("name,start_date,end_date,venue_name,location_text,stars,registration_opens,registration_closes,status")
+    .eq("id", id).maybeSingle();
+  if (!e) return { title: "Event · IFSA Event Hub" };
+  const d = (x: string | null) => x ? new Date(x + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }) : null;
+  const dates = [d(e.start_date), e.end_date && e.end_date !== e.start_date ? d(e.end_date) : null].filter(Boolean).join(" – ");
+  const where = [e.venue_name, e.location_text].filter(Boolean).join(" · ");
+  const reg = e.status !== "completed" && e.registration_opens
+    ? ` Registration ${new Date(e.registration_opens).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/Denver" })}–${e.registration_closes ? new Date(e.registration_closes).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/Denver" }) : "?"}.`
+    : "";
+  const description = `${dates}${where ? " · " + where : ""}.${reg} Entries, results, weather and every link in one place.`;
+  return {
+    title: `${e.name} · IFSA Event Hub`,
+    description,
+    openGraph: { title: e.name, description, type: "website", siteName: "IFSA Event Hub" },
+    twitter: { card: "summary_large_image", title: e.name, description },
+  };
+}
 
 export default async function EventDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -103,6 +132,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
         </div>
 
         <h1 style={{ fontSize: "clamp(18px, 5vw, 26px)", fontWeight: 800, margin: "0 0 12px" }}>{e.name}</h1>
+        <div style={{ marginBottom: 12 }}><CompFollowButton compId={e.id} compName={e.name} /></div>
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {[e.discipline, e.gender, e.division ?? "U19"].map(tag => (
@@ -129,6 +159,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
       </div>
 
       <EventLinks
+        id={e.id}
         name={e.name}
         status={e.status}
         startDate={e.start_date}
@@ -148,13 +179,17 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
         registrationCloses={e.registration_closes}
       />
 
+      {e.guide_info && <GuideHighlights guide={e.guide_info} guideUrl={e.event_guide_url} fetchedAt={e.guide_fetched_at} />}
+
+      {e.status !== "completed" && e.status !== "cancelled" && <CompPoints stars={e.stars} division={e.division} />}
+
       {e.lat && e.lon && (
         <div style={{ border: "1px solid #2a2a2a", borderRadius: 16, padding: "20px", marginBottom: 16, background: "rgba(10,10,10,0.8)" }}>
           <h2 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 700 }}>
-            Resort Weather
+            {e.status === "completed" ? "Resort conditions now" : "Resort weather"}
             {e.location_text && <span style={{ fontSize: 12, color: "#555", fontWeight: 400, marginLeft: 8 }}>{e.location_text}</span>}
           </h2>
-          <WeatherPanel lat={e.lat} lon={e.lon} />
+          <WeatherPanel lat={e.lat} lon={e.lon} eventStart={e.status === "completed" ? null : e.start_date} eventEnd={e.status === "completed" ? null : e.end_date} />
         </div>
       )}
 

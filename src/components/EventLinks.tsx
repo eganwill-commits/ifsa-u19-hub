@@ -6,6 +6,7 @@
 import { registrationInfo, fmtRegTime } from '@/lib/registration';
 
 type Props = {
+  id: string;
   name: string;
   status: string | null;
   startDate: string | null;
@@ -62,7 +63,8 @@ export default function EventLinks(p: Props) {
   if (p.venueWebsite) links.push({ label: p.venueName ? `${p.venueName} website` : 'Venue website', sub: 'Lift tickets, lodging, conditions', href: p.venueWebsite });
   if (mapsUrl) links.push({ label: 'Directions', sub: address || 'Google Maps', href: mapsUrl });
   if (p.contactEmail) links.push({ label: 'Contact organizer', sub: p.region ? `${p.region} region · ${p.contactEmail}` : p.contactEmail, href: `mailto:${p.contactEmail}` });
-  if (calUrl) links.push({ label: 'Add to calendar', sub: 'Google Calendar', href: calUrl });
+  if (calUrl) links.push({ label: 'Add to Google Calendar', sub: 'The comp dates', href: calUrl });
+  if (!finished && (p.registrationOpens || p.registrationCloses)) links.push({ label: 'Registration reminders', sub: '.ics with alerts before open/close', href: `/api/calendar?comps=${p.id}&download=1` });
 
   if (!reg && links.length === 0) return null;
 

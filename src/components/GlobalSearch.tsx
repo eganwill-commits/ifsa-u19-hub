@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { prettyName } from '@/lib/names';
 import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
 import { compListCutoff } from '@/lib/season';
@@ -73,7 +74,7 @@ export default function GlobalSearch() {
               <div style={{ padding: '10px 16px 6px', color: '#555', fontSize: 10, fontFamily: 'monospace', letterSpacing: 1, textTransform: 'uppercase' }}>Athletes</div>
               {athletes.map((a) => (
                 <Link key={a.id} href={`/athletes/${a.id}`} style={{ display: 'block', padding: '10px 16px', color: '#e8e8e8', textDecoration: 'none', borderTop: '1px solid #1a1a1a', fontSize: 14, fontWeight: 600 }}>
-                  {a.name}
+                  {prettyName(a.name)}
                 </Link>
               ))}
             </>
