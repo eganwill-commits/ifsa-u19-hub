@@ -78,8 +78,10 @@ export default function EventLinks(p: Props) {
             <div style={{ fontSize: 11, fontFamily: 'monospace', letterSpacing: 1, color: regColor, fontWeight: 800, marginBottom: 4 }}>
               {reg.state === 'open' ? 'REGISTRATION OPEN' : reg.state === 'not_yet' ? 'REGISTRATION NOT OPEN YET' : 'REGISTRATION CLOSED'}
             </div>
-            <div style={{ fontSize: 13, color: '#ddd' }}>
-              Opens {fmtRegTime(reg.opens)} · Closes {fmtRegTime(reg.closes)}
+            {/* Server renders in UTC, the browser in the viewer's zone: the text
+                legitimately differs, so let the client value win silently. */}
+            <div style={{ fontSize: 13, color: '#ddd' }} suppressHydrationWarning>
+              {`Opens ${fmtRegTime(reg.opens)} · Closes ${fmtRegTime(reg.closes)}`}
             </div>
             <div style={{ fontSize: 11, color: '#777', marginTop: 4 }}>
               Times shown in your time zone. IFSA + regional memberships must be active before you can enter.
