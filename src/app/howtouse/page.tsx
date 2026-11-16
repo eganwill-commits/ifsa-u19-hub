@@ -28,7 +28,7 @@ export default function HowToUsePage() {
         controls
         playsInline
         preload="metadata"
-        style={{ width: '100%', aspectRatio: '9 / 16', borderRadius: 18, background: '#000', display: 'block', border: '1px solid #2a2a2a' }}
+        style={{ width: 'min(100%, calc((100dvh - 170px) * 9 / 16))', aspectRatio: '9 / 16', borderRadius: 18, background: '#000', display: 'block', margin: '0 auto', border: '1px solid #2a2a2a' }}
       />
       <a
         href="/"
