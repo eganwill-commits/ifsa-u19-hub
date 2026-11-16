@@ -138,3 +138,24 @@ html::before {
   .filter-row { flex-wrap: wrap !important; overflow: visible !important; row-gap: 6px !important; }
   .filter-label { width: 100%; min-width: 0 !important; margin-top: 4px; }
 }
+
+/* ---------------------------------------------------------------------------
+   iPhone fit
+   ------------------------------------------------------------------------- */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+html, body { overscroll-behavior-x: none; }
+
+/* Home-screen app (status bar is translucent): keep the sticky nav below the
+   Dynamic Island / notch. env() is 0 in a normal browser tab. */
+.hub-nav { padding-top: env(safe-area-inset-top) !important; min-height: calc(48px + env(safe-area-inset-top)); }
+
+/* Never let one long word/URL push the page wider than the screen */
+main { overflow-wrap: break-word; }
+img, video, iframe, table { max-width: 100%; }
+
+@media (max-width: 640px) {
+  /* iOS zooms into any field under 16px and stays zoomed; 16px stops that */
+  input, select, textarea { font-size: 16px !important; }
+  .hub-nav { padding-top: calc(8px + env(safe-area-inset-top)) !important; }
+  main { padding-bottom: calc(96px + env(safe-area-inset-bottom)) !important; }
+}

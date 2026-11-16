@@ -42,12 +42,13 @@ export default function AskAI() {
       <style>{`
         .ask-ai-panel {
           position: fixed;
-          bottom: 88px;
+          bottom: calc(88px + env(safe-area-inset-bottom));
           right: 16px;
           left: 16px;
           max-width: 400px;
           margin-left: auto;
           height: 70vh;
+          height: 70dvh;
           max-height: 520px;
           background: #0e0e0e;
           border: 1px solid #2a2a2a;
@@ -72,7 +73,7 @@ export default function AskAI() {
       <button
         onClick={() => setOpen((o) => !o)}
         style={{
-          position: "fixed", bottom: 24, right: 24, zIndex: 1001,
+          position: "fixed", bottom: "calc(24px + env(safe-area-inset-bottom))", right: 24, zIndex: 1001,
           width: 52, height: 52, borderRadius: "50%",
           background: "#ffcc00", border: "none", cursor: "pointer",
           fontSize: 22, boxShadow: "0 4px 20px rgba(0,0,0,0.4)",

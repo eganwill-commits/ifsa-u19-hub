@@ -21,14 +21,20 @@ export const metadata: Metadata = {
   },
 };
 
+// Explicit viewport for iPhone: fit the device width, start unzoomed, and draw
+// edge-to-edge (viewport-fit=cover) so the home-screen app can pad itself around
+// the Dynamic Island and home bar with env(safe-area-inset-*). Zoom stays allowed.
 export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
   themeColor: '#0e0e0e',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body style={{ margin: 0, minHeight: '100vh' }}>
+      <body style={{ margin: 0, minHeight: '100dvh' }}>
         <Nav />
         {children}
         <AskAI />
