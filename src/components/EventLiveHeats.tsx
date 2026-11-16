@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { prettyName } from "@/lib/names";
 import type { LiveHeatsEvent, LiveHeatsDivision } from "@/lib/liveheats";
 
 const PLACE_COLORS: Record<number, string> = {
@@ -30,7 +32,7 @@ function ResultsTable({ results }: { results: LiveHeatsDivision["results"] }) {
                 <td style={{ padding: "8px 10px", fontWeight: 800, fontFamily: "monospace", color }}>
                   {r.place}
                 </td>
-                <td style={{ padding: "8px 10px", fontWeight: 600 }}>{r.name}</td>
+                <td style={{ padding: "8px 10px", fontWeight: 600 }}>{r.athleteId ? <Link href={`/athletes/${r.athleteId}`} style={{ color: "#e8e8e8", textDecoration: "none" }}>{prettyName(r.name)}</Link> : prettyName(r.name)}</td>
                 <td style={{ padding: "8px 10px", textAlign: "right", color: "#aaa", fontFamily: "monospace" }}>
                   {fmtScore(r.total)}
                 </td>
@@ -52,7 +54,7 @@ function EntryList({ entries }: { entries: LiveHeatsDivision["entries"] }) {
           style={{ display: "flex", gap: 10, alignItems: "baseline", padding: "5px 0", borderTop: i > 0 ? "1px solid #141414" : "none" }}
         >
           <span style={{ fontSize: 11, color: "#555", fontFamily: "monospace", minWidth: 20, textAlign: "right" }}>{i + 1}</span>
-          <span style={{ fontSize: 14 }}>{en.name}</span>
+          <span style={{ fontSize: 14 }}>{en.athleteId ? <Link href={`/athletes/${en.athleteId}`} style={{ color: "#e8e8e8", textDecoration: "none" }}>{prettyName(en.name)}</Link> : prettyName(en.name)}</span>
         </div>
       ))}
     </div>

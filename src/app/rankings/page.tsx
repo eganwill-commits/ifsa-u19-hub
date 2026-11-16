@@ -95,7 +95,10 @@ export default function RankingsPage() {
 
   const shown = filtered.slice(0, visible);
   const seasonName = rows[0]?.series_name ?? null;
-  const hasMovement = rows.some((r) => r.prev_place != null);
+  // Only show the Move column when something actually moved (or someone is new
+  // to a ranking that has history). Off-season it's a column of dashes.
+  const hasMovement = rows.some((r) => (r.place_change ?? 0) !== 0)
+    || (rows.some((r) => r.prev_place != null) && rows.some((r) => r.prev_place == null));
   const updated = rows[0]?.snapshot_date
     ? new Date(rows[0].snapshot_date + 'T00:00:00Z').toLocaleDateString('en-US', {
         month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC',
@@ -161,11 +164,11 @@ export default function RankingsPage() {
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+              <table className="rank-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                 <thead>
                   <tr style={{ textAlign: 'left', color: '#555', fontSize: 10, fontFamily: 'monospace', letterSpacing: 1, textTransform: 'uppercase' }}>
-                    <th style={{ padding: '8px 20px', width: 60 }}>Rank</th>
-                    {hasMovement && <th style={{ padding: '8px 10px', width: 64 }}>Move</th>}
+                    <th className="rank-place" style={{ padding: '8px 20px', width: 60 }}>Rank</th>
+                    {hasMovement && <th className="rank-move" style={{ padding: '8px 10px', width: 64 }}>Move</th>}
                     <th style={{ padding: '8px 20px' }}>Athlete</th>
                     <th style={{ padding: '8px 20px', width: 90, textAlign: 'right' }}>Points</th>
                   </tr>
@@ -188,6 +191,7 @@ export default function RankingsPage() {
                                 onClick={() => toggleFollow({ id: r.athlete_id!, name: prettyName(r.athlete_name) })}
                                 title={followedIds.has(r.athlete_id) ? 'Unfollow' : 'Follow'}
                                 aria-label={followedIds.has(r.athlete_id) ? `Unfollow ${prettyName(r.athlete_name)}` : `Follow ${prettyName(r.athlete_name)}`}
+                                className="rank-follow"
                                 style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 15, color: followedIds.has(r.athlete_id) ? '#ffcc00' : '#444', lineHeight: 1 }}
                               >{followedIds.has(r.athlete_id) ? '★' : '☆'}</button>
                               <Link href={`/athletes/${r.athlete_id}`} style={{ color: followedIds.has(r.athlete_id) ? '#ffcc00' : '#e8e8e8', textDecoration: 'none' }}>{prettyName(r.athlete_name)}</Link>

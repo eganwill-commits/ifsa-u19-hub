@@ -102,3 +102,39 @@ html::before {
   background-position: center top;
   z-index: -1;
 }
+/* ---------------------------------------------------------------------------
+   Mobile layout (phones ≤ 640px). Most components use inline styles, so these
+   hooks use !important to override them only on small screens.
+   ------------------------------------------------------------------------- */
+.only-mobile { display: none !important; }
+
+@media (max-width: 640px) {
+  .only-mobile { display: block !important; }
+  .only-desktop { display: none !important; }
+
+  /* Nav: logo on its own row, all five links visible on the second row */
+  .hub-nav { flex-wrap: wrap !important; height: auto !important; padding: 8px 10px 4px !important; row-gap: 2px; }
+  .hub-nav-links { width: 100%; justify-content: space-between; overflow: visible !important; }
+  .hub-nav-links a { padding: 8px 6px !important; font-size: 14px !important; }
+
+  /* Bigger tap targets for chips and small buttons */
+  .tap-chip { min-height: 36px; padding-top: 8px !important; padding-bottom: 8px !important; }
+
+  /* Rankings table: reclaim width so names stay on one or two lines */
+  .rank-table th, .rank-table td { padding-left: 8px !important; padding-right: 8px !important; }
+  .rank-table .rank-move { width: 36px !important; }
+  .rank-table .rank-place { width: 40px !important; }
+  .rank-follow { padding: 6px !important; margin: -6px 0 !important; font-size: 18px !important; }
+
+  /* Event links grid: two per row */
+  .event-links-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+
+  /* Leave room above the floating Ask AI button */
+  main { padding-bottom: 96px !important; }
+}
+
+@media (max-width: 640px) {
+  /* Events filters: wrap chips under their label instead of scrolling sideways */
+  .filter-row { flex-wrap: wrap !important; overflow: visible !important; row-gap: 6px !important; }
+  .filter-label { width: 100%; min-width: 0 !important; margin-top: 4px; }
+}

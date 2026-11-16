@@ -3,6 +3,7 @@
 // external link we know about (IFSA, LiveHeats, event guide, venue, directions,
 // organizer contact, calendar). Client component so times render in the
 // viewer's own time zone.
+import { useEffect, useState } from 'react';
 import { registrationInfo, fmtRegTime } from '@/lib/registration';
 
 type Props = {
@@ -36,6 +37,16 @@ const addDay = (ymd: string) => {
 export default function EventLinks(p: Props) {
   const finished = p.status === 'completed' || p.status === 'cancelled';
   const reg = finished ? null : registrationInfo(p.registrationOpens, p.registrationCloses);
+
+  // Server renders in Mountain Time (IFSA's own zone, and stable between server
+  // and client), then the browser swaps in the viewer's zone after mount.
+  // suppressHydrationWarning alone would keep the server's text forever.
+  const mtText = reg ? `Opens ${fmtRegTime(reg.opens, 'America/Denver')} · Closes ${fmtRegTime(reg.closes, 'America/Denver')}` : '';
+  const [regText, setRegText] = useState(mtText);
+  useEffect(() => {
+    if (reg) setRegText(`Opens ${fmtRegTime(reg.opens)} · Closes ${fmtRegTime(reg.closes)}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [p.registrationOpens, p.registrationCloses]);
 
   const address = [p.streetAddress, p.locationText].filter(Boolean).join(', ');
   const mapsUrl = address
@@ -80,11 +91,7 @@ export default function EventLinks(p: Props) {
             <div style={{ fontSize: 11, fontFamily: 'monospace', letterSpacing: 1, color: regColor, fontWeight: 800, marginBottom: 4 }}>
               {reg.state === 'open' ? 'REGISTRATION OPEN' : reg.state === 'not_yet' ? 'REGISTRATION NOT OPEN YET' : 'REGISTRATION CLOSED'}
             </div>
-            {/* Server renders in UTC, the browser in the viewer's zone: the text
-                legitimately differs, so let the client value win silently. */}
-            <div style={{ fontSize: 13, color: '#ddd' }} suppressHydrationWarning>
-              {`Opens ${fmtRegTime(reg.opens)} · Closes ${fmtRegTime(reg.closes)}`}
-            </div>
+            <div style={{ fontSize: 13, color: '#ddd' }}>{regText}</div>
             <div style={{ fontSize: 11, color: '#777', marginTop: 4 }}>
               Times shown in your time zone. IFSA + regional memberships must be active before you can enter.
             </div>
@@ -99,7 +106,7 @@ export default function EventLinks(p: Props) {
       )}
 
       {links.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8 }}>
+        <div className="event-links-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8 }}>
           {links.map((l) => (
             <a key={l.label} href={l.href} target={l.href.startsWith('mailto:') ? undefined : '_blank'} rel="noreferrer"
               style={{ display: 'block', border: `1px solid ${l.primary ? '#ffcc00' : '#2a2a2a'}`, borderRadius: 10, padding: '10px 12px', textDecoration: 'none', color: '#e8e8e8', background: 'rgba(0,0,0,0.3)' }}>

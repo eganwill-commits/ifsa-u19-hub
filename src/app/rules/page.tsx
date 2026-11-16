@@ -45,7 +45,8 @@ export default function RulesPage() {
         ))}
       </div>
 
-      <div style={{ border: '1px solid #2a2a2a', borderRadius: 16, overflow: 'hidden', background: 'rgba(10,10,10,0.8)' }}>
+      {/* The embedded 65-page PDF is unusable on a phone; the buttons above open it natively. */}
+      <div className="only-desktop" style={{ border: '1px solid #2a2a2a', borderRadius: 16, overflow: 'hidden', background: 'rgba(10,10,10,0.8)' }}>
         <iframe
           src={`https://docs.google.com/viewer?url=${encodeURIComponent(pdfUrl)}&embedded=true`}
           style={{ width: '100%', height: 'clamp(500px, 80vh, 900px)', border: 'none', display: 'block' }}

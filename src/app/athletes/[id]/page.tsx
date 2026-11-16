@@ -59,7 +59,24 @@ export default async function AthleteProfilePage({ params }: { params: Promise<{
 
   const results = (resultsData ?? []) as ResultRow[];
 
-  if (!athlete && results.length === 0) return notFound();
+  if (!athlete && results.length === 0 && rankings.length === 0) {
+    if (!/^\d+$/.test(id)) return notFound();
+    return (
+      <main style={{ maxWidth: 900, margin: "0 auto", padding: "16px 16px 60px", fontFamily: "system-ui", color: "#e8e8e8" }}>
+        <a href="/athletes" style={{ color: "#aaa", textDecoration: "none", fontSize: 14 }}>← Back to Athletes</a>
+        <div style={{ border: "1px solid #2a2a2a", borderRadius: 16, padding: 20, marginTop: 20, background: "rgba(10,10,10,0.8)" }}>
+          <h1 style={{ fontSize: 22, fontWeight: 800, margin: "0 0 8px" }}>Athlete</h1>
+          <p style={{ color: "#aaa", fontSize: 14, lineHeight: 1.5, margin: "0 0 14px" }}>
+            We don&rsquo;t have this athlete&rsquo;s results in the hub yet. They&rsquo;ll appear after the next data sync.
+          </p>
+          <a href={`https://liveheats.com/athletes/${id}`} target="_blank" rel="noreferrer"
+            style={{ fontSize: 13, color: "#ffcc00", border: "1px solid #ffcc00", borderRadius: 8, padding: "8px 14px", textDecoration: "none" }}>
+            View on LiveHeats ↗
+          </a>
+        </div>
+      </main>
+    );
+  }
   const displayName = athlete?.name ? prettyName(athlete.name) : null;
 
   const podiums = results.filter((r) => r.place != null && r.place <= 3).length;
@@ -158,7 +175,29 @@ export default async function AthleteProfilePage({ params }: { params: Promise<{
             No results recorded yet.
           </div>
         ) : (
-          <div style={{ overflowX: "auto" }}>
+          <>
+          {/* Phones: one card per result (the 5-column table squeezes event names). */}
+          <div className="only-mobile">
+            {results.map((r, i) => {
+              const color = r.place != null ? PLACE_COLORS[r.place] ?? "#e8e8e8" : "#777";
+              const name = r.event_name ?? "Event";
+              return (
+                <div key={i} style={{ display: "flex", gap: 12, padding: "12px 16px", borderTop: "1px solid #1e1e1e" }}>
+                  <div style={{ width: 34, flexShrink: 0, fontWeight: 900, fontFamily: "monospace", fontSize: 18, color }}>{r.place ?? "—"}</div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, lineHeight: 1.35 }}>
+                      {r.ifsa_event_id ? <a href={`/events/${r.ifsa_event_id}`} style={{ color: "#e8e8e8", textDecoration: "none" }}>{name}</a> : name}
+                      {r.stars ? <span style={{ color: "#ffcc00", fontSize: 12, marginLeft: 6 }}>{r.stars}★</span> : null}
+                    </div>
+                    <div style={{ fontSize: 12, color: "#999", marginTop: 3 }}>
+                      {[r.division, r.score != null ? `Score ${r.score}` : null, fmtDate(r.event_date)].filter(Boolean).join(" · ")}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="only-desktop" style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
               <thead>
                 <tr style={{ textAlign: "left", color: "#555", fontSize: 10, fontFamily: "monospace", letterSpacing: 1, textTransform: "uppercase" }}>
@@ -196,6 +235,7 @@ export default async function AthleteProfilePage({ params }: { params: Promise<{
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
     </main>

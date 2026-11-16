@@ -13,11 +13,11 @@ const links = [
 export default function Nav() {
   const [hovered, setHovered] = useState<string | null>(null);
   return (
-    <nav style={{ borderBottom: '1px solid #1e1e1e', padding: '0 12px', height: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: '#0a0a0a', zIndex: 100 }}>
+    <nav className="hub-nav" style={{ borderBottom: '1px solid #1e1e1e', padding: '0 12px', height: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: '#0a0a0a', zIndex: 100 }}>
       <Link href="/" style={{ fontFamily: 'system-ui', fontWeight: 900, fontSize: 16, color: '#e8e8e8', textDecoration: 'none', letterSpacing: '-0.5px', whiteSpace: 'nowrap', flexShrink: 0, marginRight: 8 }}>
         IFSA Event <span style={{ color: '#ffcc00' }}>Hub:</span>
       </Link>
-      <div style={{ display: 'flex', gap: 2, overflowX: 'auto', minWidth: 0, scrollbarWidth: 'none' }}>
+      <div className="hub-nav-links" style={{ display: 'flex', gap: 2, overflowX: 'auto', minWidth: 0, scrollbarWidth: 'none' }}>
         {links.map(l => (
           <Link key={l.href} href={l.href}
             onMouseEnter={() => setHovered(l.href)}

@@ -25,11 +25,12 @@ export function registrationInfo(
   return { state, opens: o, closes: c };
 }
 
-/** "Dec 8, 7:00 PM MST" in the viewer's own time zone. Call from client code. */
-export function fmtRegTime(d: Date | null): string {
+/** "Dec 8, 7:00 PM MST" — the viewer's zone by default, or a fixed zone (stable for SSR). */
+export function fmtRegTime(d: Date | null, timeZone?: string): string {
   if (!d) return "TBD";
   return d.toLocaleString("en-US", {
     month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short",
+    ...(timeZone ? { timeZone } : {}),
   });
 }
 

@@ -66,6 +66,7 @@ export default function EventsPage() {
 
   const [events, setEvents] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<Filters>({ discipline: "all", division: "all", stars: "all", status: "upcoming", search: "", region: "all", quick: "none" });
 
   useEffect(() => {
@@ -107,6 +108,11 @@ export default function EventsPage() {
   });
 
   const setFilter = (key: keyof Filters, value: string) => setFilters((f) => ({ ...f, [key]: value }));
+  // Phones: filters collapse behind a button so the list starts on screen one.
+  const activeFilterCount = [
+    filters.division !== "all", filters.discipline !== "all", filters.stars !== "all",
+    filters.status !== "upcoming", filters.region !== "all", filters.quick !== "none",
+  ].filter(Boolean).length;
   const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }) : "TBD";
 
   // Collapse the per-division rows into one card per competition (rows sharing an ifsa_url).
@@ -142,7 +148,7 @@ export default function EventsPage() {
   const FilterBtn = ({ label, filterKey, value }: { label: string; filterKey: keyof Filters; value: string }) => {
     const active = filters[filterKey] === value;
     return (
-      <button onClick={() => setFilter(filterKey, value)} style={{ padding: "5px 12px", borderRadius: 999, border: active ? "1px solid #fff" : "1px solid #2a2a2a", background: active ? "rgba(255,255,255,0.12)" : "transparent", color: active ? "#fff" : "#aaa", fontSize: 12, cursor: "pointer", fontWeight: active ? 700 : 400, transition: "all 0.1s", whiteSpace: "nowrap", flexShrink: 0 }}>
+      <button className="tap-chip" onClick={() => setFilter(filterKey, value)} style={{ padding: "5px 12px", borderRadius: 999, border: active ? "1px solid #fff" : "1px solid #2a2a2a", background: active ? "rgba(255,255,255,0.12)" : "transparent", color: active ? "#fff" : "#aaa", fontSize: 12, cursor: "pointer", fontWeight: active ? 700 : 400, transition: "all 0.1s", whiteSpace: "nowrap", flexShrink: 0 }}>
         {label}
       </button>
     );
@@ -168,39 +174,50 @@ export default function EventsPage() {
         style={{ width: "100%", padding: "10px 16px", borderRadius: 10, border: "2px solid #ffcc00", background: "#0e0e0e", color: "#fff", fontSize: 15, fontFamily: "system-ui", marginBottom: 12, boxSizing: "border-box", outline: "none" }}
       />
 
-      <div style={{ border: "1px solid #1e1e1e", borderRadius: 14, padding: "12px 14px", marginBottom: 16, background: "rgba(0,0,0,0.4)", display: "flex", flexDirection: "column", gap: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
-          <span style={{ fontSize: 11, color: "#aaa", minWidth: 80, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Division</span>
+      <button
+        className="only-mobile"
+        onClick={() => setShowFilters((v) => !v)}
+        aria-expanded={showFilters}
+        style={{ width: "100%", textAlign: "left", padding: "10px 14px", marginBottom: 12, borderRadius: 10, border: "1px solid #2a2a2a", background: "rgba(0,0,0,0.4)", color: "#e8e8e8", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+      >
+        {showFilters ? "▾" : "▸"} Filters{activeFilterCount ? ` (${activeFilterCount} active)` : ""}
+        <span style={{ float: "right", color: "#888", fontWeight: 400 }}>
+          {filters.status === "upcoming" ? "Upcoming" : filters.status === "completed" ? "Completed" : "All"}{filters.region !== "all" ? ` · ${filters.region}` : ""}
+        </span>
+      </button>
+      <div className={showFilters ? undefined : "only-desktop"} style={{ border: "1px solid #1e1e1e", borderRadius: 14, padding: "12px 14px", marginBottom: 16, background: "rgba(0,0,0,0.4)", display: "flex", flexDirection: "column", gap: 10 }}>
+        <div className="filter-row" style={{ display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
+          <span className="filter-label" style={{ fontSize: 11, color: "#aaa", minWidth: 80, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Division</span>
           <FilterBtn label="All" filterKey="division" value="all" />
           <FilterBtn label="U12" filterKey="division" value="U12" />
           <FilterBtn label="U15" filterKey="division" value="U15" />
           <FilterBtn label="U19" filterKey="division" value="U19" />
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
-          <span style={{ fontSize: 11, color: "#aaa", minWidth: 80, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Discipline</span>
+        <div className="filter-row" style={{ display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
+          <span className="filter-label" style={{ fontSize: 11, color: "#aaa", minWidth: 80, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Discipline</span>
           <FilterBtn label="All" filterKey="discipline" value="all" />
           <FilterBtn label="Ski" filterKey="discipline" value="ski" />
           <FilterBtn label="Snowboard" filterKey="discipline" value="snowboard" />
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
-          <span style={{ fontSize: 11, color: "#aaa", minWidth: 80, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Stars</span>
+        <div className="filter-row" style={{ display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
+          <span className="filter-label" style={{ fontSize: 11, color: "#aaa", minWidth: 80, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Stars</span>
           <FilterBtn label="All" filterKey="stars" value="all" />
           <FilterBtn label="2★" filterKey="stars" value="2" />
           <FilterBtn label="3★" filterKey="stars" value="3" />
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
-          <span style={{ fontSize: 11, color: "#aaa", minWidth: 80, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Status</span>
+        <div className="filter-row" style={{ display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
+          <span className="filter-label" style={{ fontSize: 11, color: "#aaa", minWidth: 80, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Status</span>
           <FilterBtn label="All" filterKey="status" value="all" />
           <FilterBtn label="Upcoming" filterKey="status" value="upcoming" />
           <FilterBtn label="Completed" filterKey="status" value="completed" />
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
-          <span style={{ fontSize: 11, color: "#aaa", minWidth: 80, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Region</span>
+        <div className="filter-row" style={{ display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
+          <span className="filter-label" style={{ fontSize: 11, color: "#aaa", minWidth: 80, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Region</span>
           <FilterBtn label="All" filterKey="region" value="all" />
           {REGION_OPTIONS.map((r) => <FilterBtn key={r} label={r} filterKey="region" value={r} />)}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
-          <span style={{ fontSize: 11, color: "#aaa", minWidth: 80, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Quick</span>
+        <div className="filter-row" style={{ display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
+          <span className="filter-label" style={{ fontSize: 11, color: "#aaa", minWidth: 80, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Quick</span>
           <FilterBtn label="None" filterKey="quick" value="none" />
           <FilterBtn label="Registration open" filterKey="quick" value="reg_open" />
           <FilterBtn label="This weekend" filterKey="quick" value="weekend" />
