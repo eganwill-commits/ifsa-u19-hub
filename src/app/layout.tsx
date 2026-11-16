@@ -15,8 +15,9 @@ export const metadata: Metadata = {
     title: 'IFSA Hub',
   },
   icons: {
-    icon: '/icon.svg',
-    apple: '/apple-touch-icon.png',
+    // favicon.ico comes from src/app/favicon.ico (Next file convention)
+    icon: [{ url: '/icon-192.png', sizes: '192x192', type: 'image/png' }],
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
   },
 };
 
