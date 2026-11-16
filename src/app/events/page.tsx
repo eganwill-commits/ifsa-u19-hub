@@ -66,7 +66,8 @@ export default function EventsPage() {
 
   const [events, setEvents] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showFilters, setShowFilters] = useState(false);
+  // Open by default so people see the filters exist; the button tucks them away.
+  const [showFilters, setShowFilters] = useState(true);
   const [filters, setFilters] = useState<Filters>({ discipline: "all", division: "all", stars: "all", status: "upcoming", search: "", region: "all", quick: "none" });
 
   useEffect(() => {
@@ -175,17 +176,16 @@ export default function EventsPage() {
       />
 
       <button
-        className="only-mobile"
         onClick={() => setShowFilters((v) => !v)}
         aria-expanded={showFilters}
         style={{ width: "100%", textAlign: "left", padding: "10px 14px", marginBottom: 12, borderRadius: 10, border: "1px solid #2a2a2a", background: "rgba(0,0,0,0.4)", color: "#e8e8e8", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
       >
-        {showFilters ? "▾" : "▸"} Filters{activeFilterCount ? ` (${activeFilterCount} active)` : ""}
+        {showFilters ? "▾ Hide filters" : "▸ Show filters"}{activeFilterCount ? ` (${activeFilterCount} active)` : ""}
         <span style={{ float: "right", color: "#888", fontWeight: 400 }}>
           {filters.status === "upcoming" ? "Upcoming" : filters.status === "completed" ? "Completed" : "All"}{filters.region !== "all" ? ` · ${filters.region}` : ""}
         </span>
       </button>
-      <div className={showFilters ? undefined : "only-desktop"} style={{ border: "1px solid #1e1e1e", borderRadius: 14, padding: "12px 14px", marginBottom: 16, background: "rgba(0,0,0,0.4)", display: "flex", flexDirection: "column", gap: 10 }}>
+      {showFilters && <div style={{ border: "1px solid #1e1e1e", borderRadius: 14, padding: "12px 14px", marginBottom: 16, background: "rgba(0,0,0,0.4)", display: "flex", flexDirection: "column", gap: 10 }}>
         <div className="filter-row" style={{ display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
           <span className="filter-label" style={{ fontSize: 11, color: "#aaa", minWidth: 80, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Division</span>
           <FilterBtn label="All" filterKey="division" value="all" />
@@ -222,7 +222,7 @@ export default function EventsPage() {
           <FilterBtn label="Registration open" filterKey="quick" value="reg_open" />
           <FilterBtn label="This weekend" filterKey="quick" value="weekend" />
         </div>
-      </div>
+      </div>}
 
       <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
         <span style={{ color: "#aaa", fontSize: 13 }}>Showing {competitions.length} of {totalComps} events</span>
