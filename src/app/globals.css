@@ -115,7 +115,9 @@ html::before {
   /* Nav: logo on its own row, all five links visible on the second row */
   .hub-nav { flex-wrap: wrap !important; height: auto !important; padding: 8px 10px 4px !important; row-gap: 2px; }
   .hub-nav-links { width: 100%; justify-content: space-between; overflow: visible !important; }
-  .hub-nav-links a { padding: 8px 6px !important; font-size: 14px !important; }
+  /* Six links must fit a 375px phone: tight padding, slightly smaller text */
+  .hub-nav-links { gap: 0 !important; }
+  .hub-nav-links a { padding: 8px 5px !important; font-size: 13.5px !important; }
 
   /* Bigger tap targets for chips and small buttons */
   .tap-chip { min-height: 36px; padding-top: 8px !important; padding-bottom: 8px !important; }
