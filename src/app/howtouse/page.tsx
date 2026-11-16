@@ -1,7 +1,9 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 
 // Unlisted walkthrough video. Not linked from the nav or anywhere on the site,
 // and kept out of search engines. Share the URL directly: ifsaeventhub.com/howtouse
+// The player is a fixed full-screen layer, so on a phone the video fills the
+// screen (it covers the site nav and the Ask AI button on this page only).
 export const metadata: Metadata = {
   title: 'How to use · IFSA Event Hub',
   description: 'A two-minute walkthrough of the IFSA Event Hub: events, follows, calendar sync, weather, rankings, athlete profiles, points, rules and Ask AI.',
@@ -15,26 +17,33 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#000000',
+};
+
 export default function HowToUsePage() {
   return (
-    <main style={{ maxWidth: 520, margin: '0 auto', padding: '20px 16px 60px', fontFamily: 'system-ui', color: '#e8e8e8' }}>
-      <h1 style={{ fontSize: 'clamp(22px, 5vw, 28px)', fontWeight: 800, margin: '0 0 4px' }}>How to use the Event Hub</h1>
-      <p style={{ color: '#aaa', fontSize: 14, margin: '0 0 14px' }}>
-        Two minutes on everything the IFSA Event Hub does. Turn your sound on.
-      </p>
+    <main style={{ position: 'fixed', inset: 0, zIndex: 10000, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <video
         src="/howtouse/ifsa-event-hub-walkthrough.mp4"
         poster="/howtouse/poster.jpg"
         controls
         playsInline
         preload="metadata"
-        style={{ width: 'min(100%, calc((100dvh - 170px) * 9 / 16))', aspectRatio: '9 / 16', borderRadius: 18, background: '#000', display: 'block', margin: '0 auto', border: '1px solid #2a2a2a' }}
+        style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#000', display: 'block' }}
       />
       <a
         href="/"
-        style={{ display: 'block', textAlign: 'center', marginTop: 16, padding: '12px 16px', borderRadius: 12, background: '#ffcc00', color: '#111', fontWeight: 800, textDecoration: 'none' }}
+        style={{
+          position: 'absolute', top: 'calc(10px + env(safe-area-inset-top))', right: 'calc(10px + env(safe-area-inset-right))',
+          padding: '7px 12px', borderRadius: 999, background: 'rgba(255,204,0,0.92)', color: '#111',
+          fontFamily: 'system-ui', fontSize: 13, fontWeight: 800, textDecoration: 'none',
+        }}
       >
-        Open the Event Hub →
+        Open the Hub →
       </a>
     </main>
   );
