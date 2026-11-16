@@ -26,7 +26,7 @@ export const viewport: Viewport = {
 
 export default function HowToUsePage() {
   return (
-    <main style={{ position: 'fixed', inset: 0, zIndex: 10000, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 10000, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <video
         src="/howtouse/ifsa-event-hub-walkthrough.mp4"
         poster="/howtouse/poster.jpg"
@@ -45,6 +45,6 @@ export default function HowToUsePage() {
       >
         Open the Hub →
       </a>
-    </main>
+    </div>
   );
 }
