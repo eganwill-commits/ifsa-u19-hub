@@ -1,5 +1,5 @@
 // Tiny, safe markdown renderer for assistant replies: headings, bullets, rules,
-// tables, **bold**, *italic*, `code` and [links](url). Builds React elements (no
+// tables, > quotes/notes, **bold**, *italic*, `code` and [links](url). Builds React elements (no
 // HTML injection) so model output can never inject markup.
 import { Fragment, type ReactNode } from "react";
 
@@ -116,6 +116,19 @@ export default function MiniMarkdown({ text }: { text: string }) {
     flush();
     if (!line.trim()) { blocks.push(<div key={k} style={{ height: 6 }} />); continue; }
     if (/^\s*(-{3,}|\*{3,})\s*$/.test(line)) { blocks.push(<hr key={k} style={{ border: 0, borderTop: "1px solid #333", margin: "6px 0" }} />); continue; }
+    // "> Note: …" — consecutive quote lines become one callout block.
+    if (/^\s*>/.test(line)) {
+      const quoted: string[] = [];
+      let j = n;
+      while (j < lines.length && /^\s*>/.test(lines[j])) { quoted.push(lines[j].replace(/^\s*>\s?/, "")); j++; }
+      blocks.push(
+        <div key={k} style={{ borderLeft: "3px solid #ffcc00", background: "rgba(255,204,0,0.06)", padding: "6px 10px", margin: "6px 0", borderRadius: "0 8px 8px 0", color: "#ccc", fontSize: 13 }}>
+          {quoted.map((q, qi) => <div key={qi}>{inline(q, `${k}-q${qi}`)}</div>)}
+        </div>,
+      );
+      n = j - 1;
+      continue;
+    }
     const h = line.match(/^\s*#{1,6}\s+(.*)$/);
     if (h) { blocks.push(<div key={k} style={{ fontWeight: 800, marginTop: 4 }}>{inline(h[1], k)}</div>); continue; }
     blocks.push(<div key={k}>{inline(line, k)}</div>);
