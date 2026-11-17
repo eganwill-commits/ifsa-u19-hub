@@ -114,7 +114,9 @@ export default function EventsPage() {
     return true;
   });
 
-  const setFilter = (key: keyof Filters, value: string) => setFilters((f) => ({ ...f, [key]: value }));
+  // Changing Status changes which months exist, so it also clears the month.
+  const setFilter = (key: keyof Filters, value: string) =>
+    setFilters((f) => ({ ...f, [key]: value, ...(key === "status" ? { month: "all" } : {}) }));
   // Phones: filters collapse behind a button so the list starts on screen one.
   const activeFilterCount = [
     filters.division !== "all", filters.discipline !== "all", filters.stars !== "all",
@@ -124,7 +126,6 @@ export default function EventsPage() {
   const monthOptions = [...new Set(events
     .filter((e) => e.start_date && (filters.status === "all" || (e.status ?? "upcoming") === filters.status))
     .map((e) => e.start_date!.slice(0, 7)))].sort();
-  if (filters.month !== "all" && !monthOptions.includes(filters.month)) monthOptions.push(filters.month);
   const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }) : "TBD";
 
   // Collapse the per-division rows into one card per competition (rows sharing an ifsa_url).
