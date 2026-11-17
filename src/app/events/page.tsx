@@ -26,11 +26,16 @@ type EventRow = {
   ifsa_region: string | null;
 };
 
-type Filters = { discipline: string; division: string; stars: string; status: string; search: string; region: string; quick: string; };
+type Filters = { discipline: string; division: string; stars: string; status: string; search: string; region: string; quick: string; month: string; };
 
 // IFSA's region for a comp; South American comps carry no region on the IFSA site.
 const regionOf = (e: { ifsa_region: string | null; location_text: string | null }) =>
   e.ifsa_region ?? (/chile|argentina/i.test(e.location_text ?? "") ? "South America" : null);
+// "2027-01" -> "Jan '27"
+const monthChipLabel = (ym: string) => {
+  const [y, m] = ym.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("en-US", { month: "short", timeZone: "UTC" }) + " '" + String(y).slice(2);
+};
 const REGION_OPTIONS = ["Northern", "Rockies", "Intermountain", "Far West", "PNW", "East", "Western Canada", "Eastern Canada", "South America"];
 
 // Fri-Sun window of the current week (or the coming one, Mon-Thu).
@@ -68,7 +73,7 @@ export default function EventsPage() {
   const [loading, setLoading] = useState(true);
   // Open by default so people see the filters exist; the button tucks them away.
   const [showFilters, setShowFilters] = useState(true);
-  const [filters, setFilters] = useState<Filters>({ discipline: "all", division: "all", stars: "all", status: "upcoming", search: "", region: "all", quick: "none" });
+  const [filters, setFilters] = useState<Filters>({ discipline: "all", division: "all", stars: "all", status: "upcoming", search: "", region: "all", quick: "none", month: "all" });
 
   useEffect(() => {
     let active = true;
@@ -92,6 +97,7 @@ export default function EventsPage() {
   const now = new Date();
   const filtered = events.filter((e) => {
     if (filters.region !== "all" && regionOf(e) !== filters.region) return false;
+    if (filters.month !== "all" && (e.start_date ?? "").slice(0, 7) !== filters.month) return false;
     if (filters.quick === "reg_open") {
       const o = e.registration_opens ? new Date(e.registration_opens) : null;
       const c = e.registration_closes ? new Date(e.registration_closes) : null;
@@ -112,8 +118,13 @@ export default function EventsPage() {
   // Phones: filters collapse behind a button so the list starts on screen one.
   const activeFilterCount = [
     filters.division !== "all", filters.discipline !== "all", filters.stars !== "all",
-    filters.status !== "upcoming", filters.region !== "all", filters.quick !== "none",
+    filters.status !== "upcoming", filters.region !== "all", filters.quick !== "none", filters.month !== "all",
   ].filter(Boolean).length;
+  // Month chips: the months that have comps under the current Status filter.
+  const monthOptions = [...new Set(events
+    .filter((e) => e.start_date && (filters.status === "all" || (e.status ?? "upcoming") === filters.status))
+    .map((e) => e.start_date!.slice(0, 7)))].sort();
+  if (filters.month !== "all" && !monthOptions.includes(filters.month)) monthOptions.push(filters.month);
   const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }) : "TBD";
 
   // Collapse the per-division rows into one card per competition (rows sharing an ifsa_url).
@@ -215,6 +226,11 @@ export default function EventsPage() {
           <span className="filter-label" style={{ fontSize: 11, color: "#aaa", minWidth: 80, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Region</span>
           <FilterBtn label="All" filterKey="region" value="all" />
           {REGION_OPTIONS.map((r) => <FilterBtn key={r} label={r} filterKey="region" value={r} />)}
+        </div>
+        <div className="filter-row" style={{ display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
+          <span className="filter-label" style={{ fontSize: 11, color: "#aaa", minWidth: 80, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Month</span>
+          <FilterBtn label="All" filterKey="month" value="all" />
+          {monthOptions.map((m) => <FilterBtn key={m} label={monthChipLabel(m)} filterKey="month" value={m} />)}
         </div>
         <div className="filter-row" style={{ display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
           <span className="filter-label" style={{ fontSize: 11, color: "#aaa", minWidth: 80, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>Quick</span>
